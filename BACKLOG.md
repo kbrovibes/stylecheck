@@ -21,6 +21,13 @@
 - Project-local `backfill-wardrobe` skill + `scripts/backfill.mjs` for bulk-importing
   a local image directory.
 
+### v1.1 — 2026-08-16
+
+- App icon (editorial "S." mark) + full favicon/apple-icon set.
+- PWA: web manifest, installable, standalone display, safe-area support.
+- Mobile-first layout: bottom tab bar navigation on phones (settings + sign-out in
+  the top bar), responsive headings and page padding.
+
 ## Backlog
 
 | # | Item | Why |
@@ -33,6 +40,7 @@
 | 6 | **Outfit calendar / wear tracking** | Log what you actually wore; unlocks rotation stats, cost-per-wear, and "you wore this Tuesday" awareness in suggestions. |
 | 7 | **Packing lists by trip + forecast** | Given a destination and dates, pull the forecast and compose a minimal packing capsule from the wardrobe. |
 | 8 | **Shareable lookbook links** | Public read-only page for a fit or a collection — get a second opinion without screenshots. |
-| 9 | **Mobile PWA + push** | Same web-push setup as the other apps (stonkbro/snobaddy). Morning "today's fit" notification using live weather. |
+| 9 | **Web push notifications** | PWA base (manifest, icons, installable, mobile tab bar) shipped in v1.1. Remaining: web-push setup like stonkbro/snobaddy — morning "today's fit" notification using live weather. |
 | 10 | **Dedupe detection on upload** | Embedding/hash similarity to catch re-uploads of the same garment before they pollute the catalogue. |
 | 11 | **Multi-country ZIP support** | Geocoding currently assumes US zips (zippopotam.us supports more — needs country selector in profile). |
+| 12 | **Rename shared Supabase projects to neutral names** | The shared DB project is displayed as "snobaddy" but actually backs stonkbro, snobaddy, opencourt, and stylecheck. Rename display names to a neutral convention (`kbro-db1`, `kbro-db2`, …) via dashboard or management API (`PATCH /v1/projects/{ref}` — display-name only; the ref/URL `zwwkcwdqsplztlmyfpyf` never changes, so zero code impact). Do together with a doc mapping which apps live in which db. |

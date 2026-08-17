@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +16,18 @@ const instrument = Instrument_Serif({
 export const metadata: Metadata = {
   title: "StyleCheck",
   description: "Your wardrobe, styled. Personal fit checks and outfit rendering.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "StyleCheck",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FAF8F5",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({
@@ -30,7 +42,13 @@ export default async function RootLayout({
     <html lang="en" className={`${inter.variable} ${instrument.variable}`}>
       <body className="min-h-screen">
         {user && <Nav email={user.email ?? ""} />}
-        <main className={user ? "mx-auto max-w-6xl px-6 pb-24 pt-10" : ""}>
+        <main
+          className={
+            user
+              ? "mx-auto max-w-6xl px-4 pb-32 pt-6 sm:px-6 sm:pt-10 md:pb-24"
+              : ""
+          }
+        >
           {children}
         </main>
         <Analytics />

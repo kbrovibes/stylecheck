@@ -68,7 +68,7 @@ export default async function TodayPage() {
 
   return (
     <div className="fade-up">
-      <div className="mb-12">
+      <div className="mb-8 sm:mb-12">
         <Eyebrow>
           {new Date().toLocaleDateString("en-US", {
             weekday: "long",
@@ -76,7 +76,7 @@ export default async function TodayPage() {
             day: "numeric",
           })}
         </Eyebrow>
-        <h1 className="text-4xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {greeting}, <span className="serif-accent text-camel">{firstName}</span>
         </h1>
       </div>
