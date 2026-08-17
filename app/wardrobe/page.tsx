@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { imgUrls } from "@/lib/storage";
+import { getActivePerson } from "@/lib/person";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import { CATEGORY_LABELS, type Category, type WardrobeItem } from "@/lib/types";
 
@@ -17,10 +18,12 @@ export default async function WardrobePage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
+  const { person } = await getActivePerson(supabase, user);
 
   const { data } = await supabase
     .from("sc_wardrobe_items")
     .select("*")
+    .eq("person_id", person.id)
     .eq("deleted", false)
     .order("created_at", { ascending: false });
 

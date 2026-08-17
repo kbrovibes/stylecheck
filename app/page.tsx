@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getOrCreateProfile } from "@/lib/account";
+import { getActivePerson } from "@/lib/person";
 import { getWeather } from "@/lib/weather";
 import { imgUrl, imgUrls } from "@/lib/storage";
 import { computeWardrobeHash } from "@/lib/scene";
@@ -25,23 +25,26 @@ export default async function TodayPage() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const profile = await getOrCreateProfile(supabase, user);
+  const { person } = await getActivePerson(supabase, user);
 
   const [{ data: itemsData }, { data: photosData }, { data: fits }] =
     await Promise.all([
       supabase
         .from("sc_wardrobe_items")
         .select("*")
+        .eq("person_id", person.id)
         .eq("deleted", false)
         .eq("enabled", true)
         .order("created_at", { ascending: true }),
       supabase
         .from("sc_user_photos")
         .select("id, kind, deleted")
+        .eq("person_id", person.id)
         .eq("deleted", false),
       supabase
         .from("sc_outfits")
         .select("*")
+        .eq("person_id", person.id)
         .eq("deleted", false)
         .order("created_at", { ascending: false })
         .limit(4),
@@ -57,8 +60,8 @@ export default async function TodayPage() {
   const heroThumbPaths = items
     .slice(0, 40)
     .map((i) => i.catalog_image_path ?? i.original_image_path);
-  const sceneUrlResolved = profile.wardrobe_scene_path
-    ? imgUrl(profile.wardrobe_scene_path)
+  const sceneUrlResolved = person.wardrobe_scene_path
+    ? imgUrl(person.wardrobe_scene_path)
     : null;
   const heroThumbUrls = imgUrls(heroThumbPaths);
   const heroGroups: HeroGroup[] = HERO_GROUPS.map((g) => ({
@@ -75,17 +78,17 @@ export default async function TodayPage() {
       })),
   }));
   const sceneStale =
-    !!profile.wardrobe_scene_path &&
+    !!person.wardrobe_scene_path &&
     itemCount > 0 &&
-    computeWardrobeHash(items) !== profile.wardrobe_scene_hash;
+    computeWardrobeHash(items) !== person.wardrobe_scene_hash;
 
   let weather: WeatherInfo | null = null;
-  if (profile.lat && profile.lon && profile.place_name) {
+  if (person.lat && person.lon && person.place_name) {
     try {
       weather = await getWeather({
-        lat: profile.lat,
-        lon: profile.lon,
-        place: profile.place_name,
+        lat: person.lat,
+        lon: person.lon,
+        place: person.place_name,
       });
     } catch {
       weather = null;
@@ -96,15 +99,14 @@ export default async function TodayPage() {
   const renderPaths = outfits.map((o) => o.render_path).filter(Boolean) as string[];
   const urls = imgUrls(renderPaths);
 
-  const firstName =
-    profile.display_name?.split(" ")[0] ?? user.email?.split("@")[0] ?? "there";
+  const firstName = person.name.split(" ")[0] || "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const setupSteps = [
     { done: (photoCount ?? 0) > 0, label: "Add your photos", href: "/profile" },
-    { done: !!(profile.height_cm && profile.weight_kg), label: "Height & weight", href: "/profile" },
-    { done: !!profile.zip_code, label: "Set your ZIP for weather", href: "/profile" },
+    { done: !!(person.height_cm && person.weight_kg), label: "Height & weight", href: "/profile" },
+    { done: !!person.zip_code, label: "Set your ZIP for weather", href: "/profile" },
     { done: (itemCount ?? 0) > 0, label: "Upload wardrobe items", href: "/upload" },
     { done: outfits.length > 0, label: "Generate your first fits", href: "/fits" },
   ];
@@ -128,7 +130,7 @@ export default async function TodayPage() {
       {itemCount > 0 && (
         <WardrobeHero
           sceneUrl={sceneUrlResolved}
-          status={profile.wardrobe_scene_status}
+          status={person.wardrobe_scene_status}
           stale={sceneStale}
           groups={heroGroups}
         />

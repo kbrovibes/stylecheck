@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Outfit, Profile, Settings, UserPhoto, WardrobeItem } from "@/lib/types";
+import type { Outfit, Person, Settings, UserPhoto, WardrobeItem } from "@/lib/types";
 import { renderOutfitImage, type ImageInput } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
 
@@ -17,21 +17,21 @@ const KIND_ORDER: Record<string, number> = {
  */
 export async function renderOutfitRecord(
   supabase: SupabaseClient,
-  userId: string,
+  writerUserId: string,
   outfit: Outfit,
-  profile: Profile,
+  person: Person,
   settings: Settings,
   opts?: { goofy?: boolean }
 ) {
   try {
     const personImages: ImageInput[] = [];
-    if (profile.base_render_path) {
-      personImages.push(await downloadAsImageInput(supabase, profile.base_render_path));
+    if (person.base_render_path) {
+      personImages.push(await downloadAsImageInput(supabase, person.base_render_path));
     } else {
       const { data: photosData } = await supabase
         .from("sc_user_photos")
         .select("*")
-        .eq("user_id", userId)
+        .eq("person_id", person.id)
         .eq("deleted", false);
       const photos = ((photosData ?? []) as UserPhoto[]).sort(
         (a, b) =>
@@ -65,24 +65,25 @@ export async function renderOutfitRecord(
       .eq("id", outfit.id);
 
     const image = await renderOutfitImage(settings, {
-      profile,
+      profile: person,
       personImages,
       itemImages,
       items,
       outfit: { title: outfit.title, styling_notes: outfit.styling_notes },
-      editBase: !!profile.base_render_path,
+      editBase: !!person.base_render_path,
       goofy: !!opts?.goofy,
     });
 
     const path = await uploadBase64(
       supabase,
-      `${userId}/renders/outfit-${outfit.id}${opts?.goofy ? "-goofy" : ""}-${Date.now()}.${extFromMime(image.mimeType)}`,
+      `${writerUserId}/renders/outfit-${outfit.id}${opts?.goofy ? "-goofy" : ""}-${Date.now()}.${extFromMime(image.mimeType)}`,
       image.data,
       image.mimeType
     );
 
     await supabase.from("sc_renders").insert({
-      user_id: userId,
+      user_id: writerUserId,
+      person_id: outfit.person_id ?? person.id,
       subject_type: opts?.goofy ? "outfit_goofy" : "outfit",
       subject_id: outfit.id,
       storage_path: path,

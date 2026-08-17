@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
+import PersonSwitcher, { type SwitcherPerson } from "@/components/person-switcher";
 
 const LINKS = [
   { href: "/", label: "Today" },
@@ -50,7 +51,13 @@ function matches(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-export default function Nav({ email }: { email: string }) {
+export default function Nav({
+  email,
+  switcher,
+}: {
+  email: string;
+  switcher: { people: SwitcherPerson[]; activeId: string } | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -109,14 +116,19 @@ export default function Nav({ email }: { email: string }) {
       {/* Top bar */}
       <header className="sticky top-0 z-40 border-b hairline bg-ivory/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:h-16 sm:px-6">
-          <Link href="/" className="group select-none">
-            <span className="font-serif text-[16px] uppercase tracking-[0.3em] text-ink sm:text-[18px]">
-              Stylecheck
-            </span>
-            <span className="font-serif text-[18px] text-camel transition-colors group-hover:text-camel-deep sm:text-[20px]">
-              .
-            </span>
-          </Link>
+          <div className="flex min-w-0 items-center gap-3">
+            <Link href="/" className="group select-none shrink-0">
+              <span className="font-serif text-[16px] uppercase tracking-[0.3em] text-ink sm:text-[18px]">
+                Stylecheck
+              </span>
+              <span className="font-serif text-[18px] text-camel transition-colors group-hover:text-camel-deep sm:text-[20px]">
+                .
+              </span>
+            </Link>
+            {switcher && switcher.people.length > 0 && (
+              <PersonSwitcher people={switcher.people} activeId={switcher.activeId} />
+            )}
+          </div>
 
           {/* Desktop links */}
           <nav className="hidden items-center gap-1 md:flex">

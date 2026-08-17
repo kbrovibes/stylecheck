@@ -15,9 +15,11 @@ const KIND_LABEL: Record<string, string> = {
 export default function PhotoGrid({
   photos,
   urls,
+  readOnly = false,
 }: {
   photos: UserPhoto[];
   urls: Record<string, string>;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
@@ -73,8 +75,8 @@ export default function PhotoGrid({
           }`}
         >
           <button
-            onClick={() => setPrimary(p.id)}
-            disabled={pending !== null}
+            onClick={() => !readOnly && setPrimary(p.id)}
+            disabled={pending !== null || readOnly}
             title={p.is_primary ? "Primary photo" : "Tap to make primary"}
             className="absolute inset-0 text-left"
           >
@@ -97,7 +99,7 @@ export default function PhotoGrid({
           </button>
 
           {/* delete */}
-          {confirmDelete === p.id ? (
+          {readOnly ? null : confirmDelete === p.id ? (
             <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-1 rounded-full bg-ink/85 px-3 py-1.5 backdrop-blur-sm">
               <span className="text-[11px] text-ivory">Remove?</span>
               <span className="flex gap-2">

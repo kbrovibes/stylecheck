@@ -31,6 +31,15 @@ export async function POST(
     return NextResponse.json({ error: "Fit not found" }, { status: 404 });
   }
   const parent = parentData as Outfit;
+  const { data: ok } = parent.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: parent.person_id })
+    : { data: parent.user_id === user.id };
+  if (!ok) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
   const variations = (parent.variations ?? []) as OutfitVariation[];
   const variation = variations[index];
   if (!variation) {
@@ -49,6 +58,7 @@ export async function POST(
     .from("sc_outfits")
     .insert({
       user_id: user.id,
+      person_id: parent.person_id,
       title: `${parent.title ?? "Fit"} — ${variation.label}`,
       item_ids: itemIds,
       occasion: parent.occasion,

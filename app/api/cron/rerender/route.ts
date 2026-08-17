@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { renderOutfitRecord } from "@/lib/render";
-import type { Outfit, Profile, Settings } from "@/lib/types";
+import type { Outfit, Person, Settings } from "@/lib/types";
 
 export const maxDuration = 300;
+
+const DEFAULT_SETTINGS = {
+  provider: "gemini",
+  text_model: "gemini-2.5-flash",
+  image_model: "gemini-3-pro-image-preview",
+} as Settings;
 
 /**
  * Batch re-render outfits (manual trigger, CRON_SECRET-authenticated; not on a
  * schedule). Re-renders outfits whose latest render predates `before` — call
  * repeatedly until `remaining` is 0. Powers "re-render everything after a
- * prompt/model change".
+ * prompt/model change". With ?goofy=1, generates missing goofy takes instead.
  *
  *   GET /api/cron/rerender?before=<ISO>&limit=3
+ *   GET /api/cron/rerender?goofy=1&limit=3
  */
 export async function GET(request: Request) {
   if (
@@ -34,7 +41,7 @@ export async function GET(request: Request) {
     .select("*")
     .eq("deleted", false)
     .order("created_at", { ascending: true });
-  const outfits = (outfitsData ?? []) as Outfit[];
+  const outfits = ((outfitsData ?? []) as Outfit[]).filter((o) => o.person_id);
 
   // Latest render timestamp per outfit — only touch ones from before the cutoff.
   const { data: renders } = await admin
@@ -55,32 +62,34 @@ export async function GET(request: Request) {
       });
 
   const results: Record<string, string> = {};
-  const profiles = new Map<string, Profile>();
-  const settingsMap = new Map<string, Settings>();
+  const peopleById = new Map<string, Person>();
+  const settingsByOwner = new Map<string, Settings>();
 
   for (const outfit of queue.slice(0, limit)) {
     try {
-      if (!profiles.has(outfit.user_id)) {
+      if (!peopleById.has(outfit.person_id!)) {
         const { data: p } = await admin
-          .from("sc_profiles").select("*").eq("id", outfit.user_id).single();
+          .from("sc_people")
+          .select("*")
+          .eq("id", outfit.person_id!)
+          .single();
+        peopleById.set(outfit.person_id!, p as Person);
+      }
+      const person = peopleById.get(outfit.person_id!)!;
+      if (!settingsByOwner.has(person.owner_id)) {
         const { data: s } = await admin
-          .from("sc_settings").select("*").eq("user_id", outfit.user_id).maybeSingle();
-        profiles.set(outfit.user_id, p as Profile);
-        settingsMap.set(
-          outfit.user_id,
-          (s ?? {
-            provider: "gemini",
-            text_model: "gemini-2.5-flash",
-            image_model: "gemini-2.5-flash-image",
-          }) as Settings
-        );
+          .from("sc_settings")
+          .select("*")
+          .eq("user_id", person.owner_id)
+          .maybeSingle();
+        settingsByOwner.set(person.owner_id, (s ?? DEFAULT_SETTINGS) as Settings);
       }
       await renderOutfitRecord(
         admin,
-        outfit.user_id,
+        person.owner_id,
         outfit,
-        profiles.get(outfit.user_id)!,
-        settingsMap.get(outfit.user_id)!,
+        person,
+        settingsByOwner.get(person.owner_id)!,
         { goofy: goofyBatch }
       );
       results[outfit.id] = "done";

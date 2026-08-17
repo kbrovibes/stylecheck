@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
-import { getOrCreateProfile, getOrCreateSettings } from "@/lib/account";
+import { getOrCreateSettings } from "@/lib/account";
+import { canManage, getActivePerson } from "@/lib/person";
 import { generateBaseRender } from "@/lib/ai";
 import { downloadAsImageInput, imgUrl, uploadBase64 } from "@/lib/storage";
 import type { RenderAdjustments, UserPhoto } from "@/lib/types";
@@ -40,19 +41,23 @@ export async function POST(request: Request) {
   }
   const preview = !!body.preview;
 
-  const [profile, settings] = await Promise.all([
-    getOrCreateProfile(supabase, user),
-    getOrCreateSettings(supabase, user.id),
-  ]);
+  const { person, role } = await getActivePerson(supabase, user);
+  if (!canManage(role)) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
+  const settings = await getOrCreateSettings(supabase, user.id);
   const adjustments =
     body.adjustments !== undefined
       ? sanitizeAdjustments(body.adjustments)
-      : (profile.render_adjustments ?? null);
+      : (person.render_adjustments ?? null);
 
   const { data: photos } = await supabase
     .from("sc_user_photos")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("person_id", person.id)
     .eq("deleted", false);
 
   const all = (photos ?? []) as UserPhoto[];
@@ -72,7 +77,7 @@ export async function POST(request: Request) {
     const images = await Promise.all(
       picked.map((p) => downloadAsImageInput(supabase, p.storage_path))
     );
-    const result = await generateBaseRender(settings, profile, images, adjustments);
+    const result = await generateBaseRender(settings, person, images, adjustments);
     const path = `${user.id}/renders/base-${Date.now()}.png`;
     await uploadBase64(supabase, path, result.data, result.mimeType);
 
@@ -81,22 +86,22 @@ export async function POST(request: Request) {
       : "";
     await supabase.from("sc_renders").insert({
       user_id: user.id,
+      person_id: person.id,
       subject_type: "profile",
-      subject_id: user.id,
+      subject_id: person.id,
       storage_path: path,
       model: settings.image_model,
-      prompt_summary: `base render from ${picked.length} photo(s), ${profile.height_cm ?? "?"}cm/${profile.weight_kg ?? "?"}kg${adjSummary}${preview ? " (preview)" : ""}`,
+      prompt_summary: `base render from ${picked.length} photo(s), ${person.height_cm ?? "?"}cm/${person.weight_kg ?? "?"}kg${adjSummary}${preview ? " (preview)" : ""}`,
     });
 
     if (!preview) {
       await supabase
-        .from("sc_profiles")
+        .from("sc_people")
         .update({
           base_render_path: path,
           render_adjustments: adjustments,
-          updated_at: new Date().toISOString(),
         })
-        .eq("id", user.id);
+        .eq("id", person.id);
     }
 
     const url = imgUrl(path);
@@ -118,6 +123,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { supabase, user } = ctx;
+  const { person, role } = await getActivePerson(supabase, user);
+  if (!canManage(role)) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
   const body = await request.json().catch(() => ({}));
   const path = typeof body.path === "string" ? body.path : null;
   if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
@@ -125,7 +137,7 @@ export async function PUT(request: Request) {
   const { data: render } = await supabase
     .from("sc_renders")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("person_id", person.id)
     .eq("subject_type", "profile")
     .eq("storage_path", path)
     .maybeSingle();
@@ -133,13 +145,10 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "unknown render" }, { status: 404 });
   }
 
-  const update: Record<string, unknown> = {
-    base_render_path: path,
-    updated_at: new Date().toISOString(),
-  };
+  const update: Record<string, unknown> = { base_render_path: path };
   if (body.adjustments !== undefined) {
     update.render_adjustments = sanitizeAdjustments(body.adjustments);
   }
-  await supabase.from("sc_profiles").update(update).eq("id", user.id);
+  await supabase.from("sc_people").update(update).eq("id", person.id);
   return NextResponse.json({ ok: true });
 }

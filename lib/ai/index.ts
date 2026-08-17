@@ -3,7 +3,7 @@ import type {
   ItemAnalysis,
   Outfit,
   OutfitPlan,
-  Profile,
+  BodyProfile,
   RenderAdjustments,
   Settings,
   WardrobeItem,
@@ -56,7 +56,7 @@ export async function classifyImage(
 export async function composeOutfits(
   settings: Settings,
   opts: {
-    profile: Profile;
+    profile: BodyProfile;
     items: WardrobeItem[];
     weather: WeatherInfo | null;
     count: number;
@@ -111,7 +111,7 @@ export async function generateWardrobeSceneImage(
 
 export async function generateBaseRender(
   settings: Settings,
-  profile: Profile,
+  profile: BodyProfile,
   photos: ImageInput[],
   adjustments?: RenderAdjustments | null
 ) {
@@ -124,7 +124,7 @@ export async function generateBaseRender(
 export async function renderOutfitImage(
   settings: Settings,
   opts: {
-    profile: Profile;
+    profile: BodyProfile;
     personImages: ImageInput[]; // base render (preferred) or user photos
     itemImages: ImageInput[];
     items: WardrobeItem[];

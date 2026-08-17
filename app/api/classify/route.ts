@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
+import { canManage, getActivePerson } from "@/lib/person";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
 import { classifyImage, generateCatalogImage } from "@/lib/ai";
 import type { ItemAnalysis } from "@/lib/types";
@@ -28,11 +29,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid paths" }, { status: 400 });
   }
 
+  const { person, role } = await getActivePerson(supabase, user);
+  if (!canManage(role)) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
   const settings = await getOrCreateSettings(supabase, user.id);
 
   const { count: existingPhotos } = await supabase
     .from("sc_user_photos")
     .select("*", { count: "exact", head: true })
+    .eq("person_id", person.id)
     .eq("deleted", false);
   let claimedPrimary = (existingPhotos ?? 0) > 0;
 
@@ -41,6 +50,7 @@ export async function POST(request: Request) {
       .from("sc_wardrobe_items")
       .insert({
         user_id: user.id,
+        person_id: person.id,
         category: item.category,
         subcategory: item.subcategory,
         name: item.name,
@@ -76,6 +86,7 @@ export async function POST(request: Request) {
           .from("sc_user_photos")
           .insert({
             user_id: user.id,
+            person_id: person.id,
             storage_path: path,
             kind: result.person?.photo_kind ?? "unknown",
             is_primary: makePrimary,
@@ -145,6 +156,7 @@ export async function POST(request: Request) {
             .eq("id", item.id);
           await supabase.from("sc_renders").insert({
             user_id: user.id,
+            person_id: person.id,
             subject_type: "item_catalog",
             subject_id: item.id,
             storage_path: path,

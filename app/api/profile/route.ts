@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
+import { canManage, getActivePerson } from "@/lib/person";
 import { geocodeZip } from "@/lib/weather";
 
 export async function PATCH(request: Request) {
@@ -10,14 +11,20 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { supabase, user } = ctx;
+  const { person, role } = await getActivePerson(supabase, user);
+  if (!canManage(role)) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
   const body = await request.json();
 
-  const update: Record<string, unknown> = {
-    id: user.id,
-    email: user.email,
-    updated_at: new Date().toISOString(),
-  };
-  if ("display_name" in body) update.display_name = body.display_name || null;
+  const update: Record<string, unknown> = {};
+  if ("name" in body || "display_name" in body) {
+    const name = (body.name ?? body.display_name ?? "").toString().trim();
+    if (name) update.name = name;
+  }
   if ("age" in body) {
     const age = Math.round(Number(body.age));
     update.birth_year =
@@ -54,10 +61,11 @@ export async function PATCH(request: Request) {
   }
 
   const { data, error } = await supabase
-    .from("sc_profiles")
-    .upsert(update)
+    .from("sc_people")
+    .update(update)
+    .eq("id", person.id)
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ profile: data, warning });
+  return NextResponse.json({ person: data, warning });
 }

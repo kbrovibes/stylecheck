@@ -17,20 +17,28 @@ export async function DELETE(
 
   const { data: render } = await supabase
     .from("sc_renders")
-    .select("id, storage_path, subject_type, subject_id")
+    .select("id, user_id, person_id, storage_path, subject_type, subject_id")
     .eq("id", id)
-    .eq("user_id", user.id)
     .maybeSingle();
   if (!render) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const { data: ok } = render.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: render.person_id })
+    : { data: render.user_id === user.id };
+  if (!ok) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
 
   // Block removing a render that is currently in use.
-  if (render.subject_type === "profile") {
-    const { data: profile } = await supabase
-      .from("sc_profiles")
+  if (render.subject_type === "profile" && render.person_id) {
+    const { data: personRow } = await supabase
+      .from("sc_people")
       .select("base_render_path")
-      .eq("id", user.id)
-      .single();
-    if (profile?.base_render_path === render.storage_path) {
+      .eq("id", render.person_id)
+      .maybeSingle();
+    if (personRow?.base_render_path === render.storage_path) {
       return NextResponse.json(
         { error: "This is your active base render — generate or save another one first." },
         { status: 409 }

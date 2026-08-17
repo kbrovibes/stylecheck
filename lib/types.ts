@@ -35,6 +35,50 @@ export interface RenderAdjustments {
   note?: string; // free-text correction, e.g. "slightly rounder face"
 }
 
+export type PersonRole = "owner" | "manager" | "viewer";
+
+// A profile within an account (self, daughter, ...). Carries all body/styling
+// state; every photo/item/outfit/render belongs to a person.
+export interface Person {
+  id: string;
+  owner_id: string;
+  name: string;
+  relationship: string | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  birth_year: number | null;
+  zip_code: string | null;
+  country_code: string;
+  lat: number | null;
+  lon: number | null;
+  place_name: string | null;
+  base_render_path: string | null;
+  render_adjustments: RenderAdjustments | null;
+  wardrobe_scene_path: string | null;
+  wardrobe_scene_hash: string | null;
+  wardrobe_scene_status: "none" | "pending" | "done" | "failed";
+  wardrobe_scene_generated_at: string | null;
+  is_default: boolean;
+  deleted: boolean;
+  created_at: string;
+}
+
+export interface PersonShare {
+  id: string;
+  person_id: string;
+  owner_id: string;
+  grantee_email: string;
+  grantee_user_id: string | null;
+  role: "viewer" | "manager";
+  created_at: string;
+}
+
+// The body-relevant subset prompts/rendering need — satisfied by Person and Profile.
+export type BodyProfile = Pick<
+  Person,
+  "height_cm" | "weight_kg" | "birth_year" | "render_adjustments"
+>;
+
 export interface Profile {
   id: string;
   email: string | null;
@@ -60,6 +104,7 @@ export interface Profile {
 export interface UserPhoto {
   id: string;
   user_id: string;
+  person_id: string | null;
   storage_path: string;
   kind: PhotoKind;
   is_primary: boolean;
@@ -72,6 +117,7 @@ export interface UserPhoto {
 export interface WardrobeItem {
   id: string;
   user_id: string;
+  person_id: string | null;
   category: Category;
   subcategory: string | null;
   name: string | null;
@@ -103,6 +149,7 @@ export interface OutfitVariation {
 export interface Outfit {
   id: string;
   user_id: string;
+  person_id: string | null;
   title: string | null;
   item_ids: string[];
   occasion: Occasion | null;
@@ -124,6 +171,7 @@ export interface Outfit {
 export interface RenderRecord {
   id: string;
   user_id: string;
+  person_id: string | null;
   subject_type: "outfit" | "outfit_goofy" | "profile" | "item_catalog";
   subject_id: string | null;
   storage_path: string;

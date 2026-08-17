@@ -64,12 +64,14 @@ export default function RenderPanel({
   historyUrls,
   hasPhotos,
   savedAdjustments,
+  readOnly = false,
 }: {
   currentUrl: string | null;
   history: RenderRecord[];
   historyUrls: Record<string, string>;
   hasPhotos: boolean;
   savedAdjustments: RenderAdjustments | null;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"generate" | "preview" | "save" | null>(null);
@@ -209,6 +211,10 @@ export default function RenderPanel({
             every outfit we style.
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
+            {readOnly ? (
+              <p className="text-[12px] text-ink-faint">View-only access — rendering is managed by the owner.</p>
+            ) : (
+            <>
             <Button onClick={generate} disabled={rendering || !hasPhotos}>
               {busy === "generate"
                 ? "Rendering… ~30s"
@@ -224,6 +230,8 @@ export default function RenderPanel({
               >
                 {tuning ? "Hide tuning" : "Tune the render"}
               </Button>
+            )}
+            </>
             )}
           </div>
           {!hasPhotos && (
@@ -290,6 +298,7 @@ export default function RenderPanel({
                         />
                       )}
                     </div>
+                    {!readOnly && (
                     <button
                       onClick={async () => {
                         setError(null);
@@ -308,6 +317,7 @@ export default function RenderPanel({
                     >
                       ×
                     </button>
+                    )}
                     <div className="mt-1.5">
                       <Badge>{r.model.replace(/^gemini-|^gpt-/, "")}</Badge>
                     </div>

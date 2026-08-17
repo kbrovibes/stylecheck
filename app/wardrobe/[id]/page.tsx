@@ -29,6 +29,9 @@ export default async function ItemPage({
     .maybeSingle();
   if (!data) notFound();
   const item = data as WardrobeItem;
+  const { data: canEdit } = item.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: item.person_id })
+    : { data: item.user_id === user.id };
 
   const urls = imgUrls([item.catalog_image_path, item.original_image_path].filter(Boolean) as string[]
   );
@@ -117,13 +120,19 @@ export default async function ItemPage({
             )}
           </dl>
 
-          <div className="mt-8 border-t hairline pt-6">
-            <ItemActions
-              itemId={item.id}
-              enabled={item.enabled}
-              hasCatalog={!!item.catalog_image_path}
-            />
-          </div>
+          {canEdit ? (
+            <div className="mt-8 border-t hairline pt-6">
+              <ItemActions
+                itemId={item.id}
+                enabled={item.enabled}
+                hasCatalog={!!item.catalog_image_path}
+              />
+            </div>
+          ) : (
+            <p className="mt-8 border-t hairline pt-6 text-[12px] text-ink-faint">
+              Shared with you — view only.
+            </p>
+          )}
 
           <p className="mt-8 text-[11px] tracking-wide text-ink-faint">
             Classified by {item.model_used ?? "—"} ·{" "}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
+import { canManage, getActivePerson } from "@/lib/person";
 import { classifyImage } from "@/lib/ai";
 import { downloadAsImageInput } from "@/lib/storage";
 import type { PhotoKind } from "@/lib/types";
@@ -17,6 +18,13 @@ export async function POST(request: Request) {
   if (!paths?.length)
     return NextResponse.json({ error: "no paths" }, { status: 400 });
 
+  const { person, role } = await getActivePerson(supabase, user);
+  if (!canManage(role)) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
   const settings = await getOrCreateSettings(supabase, user.id);
   const created = [];
   const problems: string[] = [];
@@ -43,6 +51,7 @@ export async function POST(request: Request) {
       .from("sc_user_photos")
       .insert({
         user_id: user.id,
+        person_id: person.id,
         storage_path: path,
         kind,
         analysis,
@@ -65,6 +74,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { supabase, user } = ctx;
+  const { person, role } = await getActivePerson(supabase, user);
+  if (!canManage(role)) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
   const { id, is_primary, deleted } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
@@ -74,14 +90,14 @@ export async function PATCH(request: Request) {
       .from("sc_user_photos")
       .update({ deleted: true, is_primary: false })
       .eq("id", id)
-      .eq("user_id", user.id)
+      .eq("person_id", person.id)
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const { count } = await supabase
       .from("sc_user_photos")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
+      .eq("person_id", person.id)
       .eq("deleted", false);
     return NextResponse.json({ photo: data, remaining: count ?? 0 });
   }
@@ -90,13 +106,13 @@ export async function PATCH(request: Request) {
     await supabase
       .from("sc_user_photos")
       .update({ is_primary: false })
-      .eq("user_id", user.id);
+      .eq("person_id", person.id);
   }
   const { data, error } = await supabase
     .from("sc_user_photos")
     .update({ is_primary: !!is_primary })
     .eq("id", id)
-    .eq("user_id", user.id)
+    .eq("person_id", person.id)
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

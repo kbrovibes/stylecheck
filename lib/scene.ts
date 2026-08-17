@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Category, Settings, WardrobeItem } from "@/lib/types";
+import type { Category, Person, Settings, WardrobeItem } from "@/lib/types";
 import { generateWardrobeSceneImage } from "@/lib/ai";
 import { downloadAsImageInput, uploadBase64 } from "@/lib/storage";
 
@@ -25,11 +25,11 @@ function pick(items: WardrobeItem[], cats: Category[], n: number) {
     .slice(0, n);
 }
 
-export async function loadSceneItems(supabase: SupabaseClient, userId: string) {
+export async function loadSceneItems(supabase: SupabaseClient, personId: string) {
   const { data } = await supabase
     .from("sc_wardrobe_items")
     .select("*")
-    .eq("user_id", userId)
+    .eq("person_id", personId)
     .eq("deleted", false)
     .eq("enabled", true)
     .order("created_at", { ascending: true });
@@ -42,15 +42,16 @@ export async function loadSceneItems(supabase: SupabaseClient, userId: string) {
  */
 export async function generateWardrobeScene(
   supabase: SupabaseClient,
-  userId: string,
+  writerUserId: string,
+  person: Person,
   settings: Settings
 ) {
-  const items = await loadSceneItems(supabase, userId);
+  const items = await loadSceneItems(supabase, person.id);
   if (!items.length) {
     await supabase
-      .from("sc_profiles")
+      .from("sc_people")
       .update({ wardrobe_scene_status: "none" })
-      .eq("id", userId);
+      .eq("id", person.id);
     return { status: "none" as const };
   }
   const hash = computeWardrobeHash(items);
@@ -81,33 +82,34 @@ export async function generateWardrobeScene(
     );
 
     const result = await generateWardrobeSceneImage(settings, itemNames, refs);
-    const path = `${userId}/scenes/scene-${Date.now()}.png`;
+    const path = `${writerUserId}/scenes/scene-${Date.now()}.png`;
     await uploadBase64(supabase, path, result.data, result.mimeType);
 
     await supabase.from("sc_renders").insert({
-      user_id: userId,
+      user_id: writerUserId,
+      person_id: person.id,
       subject_type: "wardrobe_scene",
-      subject_id: userId,
+      subject_id: person.id,
       storage_path: path,
       model: settings.image_model,
       prompt_summary: `wardrobe scene, ${chosen.length} of ${items.length} items`,
     });
     await supabase
-      .from("sc_profiles")
+      .from("sc_people")
       .update({
         wardrobe_scene_path: path,
         wardrobe_scene_hash: hash,
         wardrobe_scene_status: "done",
         wardrobe_scene_generated_at: new Date().toISOString(),
       })
-      .eq("id", userId);
+      .eq("id", person.id);
     return { status: "done" as const, path };
   } catch (e) {
     await supabase
-      .from("sc_profiles")
+      .from("sc_people")
       .update({ wardrobe_scene_status: "failed" })
-      .eq("id", userId);
-    console.error(`scene generation failed for ${userId}:`, e);
+      .eq("id", person.id);
+    console.error(`scene generation failed for person ${person.id}:`, e);
     return { status: "failed" as const, error: (e as Error).message };
   }
 }

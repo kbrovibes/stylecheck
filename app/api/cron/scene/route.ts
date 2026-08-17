@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeWardrobeHash, generateWardrobeScene, loadSceneItems } from "@/lib/scene";
 import { backfillPendingCatalogShots } from "@/lib/catalog";
-import type { Settings } from "@/lib/types";
+import type { Person, Settings } from "@/lib/types";
 
 export const maxDuration = 300;
 
+const DEFAULT_SETTINGS = {
+  provider: "gemini",
+  text_model: "gemini-2.5-flash",
+  image_model: "gemini-3-pro-image-preview",
+} as Settings;
+
 /**
- * Nightly wardrobe-scene refresh (Vercel cron). For each user whose wardrobe
+ * Nightly wardrobe-scene refresh (Vercel cron). For each person whose wardrobe
  * changed since the last scene (hash mismatch) — or whose last attempt failed —
  * regenerate. Unchanged wardrobes keep the cached scene, so the home page stays
  * instant.
@@ -21,42 +27,64 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient();
-  const { data: profiles } = await admin
-    .from("sc_profiles")
-    .select("id, wardrobe_scene_hash, wardrobe_scene_status");
+  const { data: peopleData } = await admin
+    .from("sc_people")
+    .select("*")
+    .eq("deleted", false);
+  const people = (peopleData ?? []) as Person[];
 
-  const summary: Record<string, string> = {};
-  for (const p of profiles ?? []) {
-    try {
+  // Owner settings, fetched once per account.
+  const settingsByOwner = new Map<string, Settings>();
+  async function ownerSettings(ownerId: string): Promise<Settings> {
+    if (!settingsByOwner.has(ownerId)) {
       const { data: s } = await admin
         .from("sc_settings")
         .select("*")
-        .eq("user_id", p.id)
+        .eq("user_id", ownerId)
         .maybeSingle();
-      const settings = (s ?? {
-        provider: "gemini",
-        text_model: "gemini-2.5-flash",
-        image_model: "gemini-2.5-flash-image",
-      }) as Settings;
+      settingsByOwner.set(ownerId, (s ?? DEFAULT_SETTINGS) as Settings);
+    }
+    return settingsByOwner.get(ownerId)!;
+  }
 
-      // 1) catch up on missing product shots (widgets are catalog-image-first)
-      const shots = await backfillPendingCatalogShots(admin, p.id, settings, 10);
+  const summary: Record<string, string> = {};
 
-      // 2) refresh the wardrobe scene only if the wardrobe changed
-      const items = await loadSceneItems(admin, p.id);
+  // 1) catch up on missing product shots, once per owner account
+  const owners = [...new Set(people.map((p) => p.owner_id))];
+  const shotsByOwner = new Map<string, number>();
+  for (const ownerId of owners) {
+    try {
+      const shots = await backfillPendingCatalogShots(
+        admin,
+        ownerId,
+        await ownerSettings(ownerId),
+        10
+      );
+      shotsByOwner.set(ownerId, shots);
+    } catch (e) {
+      summary[`owner:${ownerId}`] = `catalog error: ${(e as Error).message.slice(0, 100)}`;
+    }
+  }
+
+  // 2) refresh each person's scene only if their wardrobe changed
+  for (const person of people) {
+    try {
+      const items = await loadSceneItems(admin, person.id);
       if (!items.length) {
-        summary[p.id] = "no items";
+        summary[person.id] = "no items";
         continue;
       }
       const hash = computeWardrobeHash(items);
-      if (hash === p.wardrobe_scene_hash && p.wardrobe_scene_status === "done") {
-        summary[p.id] = shots ? `cached scene, ${shots} shots` : "cached";
+      if (hash === person.wardrobe_scene_hash && person.wardrobe_scene_status === "done") {
+        summary[person.id] = "cached";
         continue;
       }
-      const result = await generateWardrobeScene(admin, p.id, settings);
-      summary[p.id] = `${result.status}${shots ? `, ${shots} shots` : ""}`;
+      const settings = await ownerSettings(person.owner_id);
+      const result = await generateWardrobeScene(admin, person.owner_id, person, settings);
+      const shots = shotsByOwner.get(person.owner_id) ?? 0;
+      summary[person.id] = `${result.status}${shots ? `, ${shots} shots` : ""}`;
     } catch (e) {
-      summary[p.id] = `error: ${(e as Error).message}`;
+      summary[person.id] = `error: ${(e as Error).message.slice(0, 120)}`;
     }
   }
   return NextResponse.json({ summary });

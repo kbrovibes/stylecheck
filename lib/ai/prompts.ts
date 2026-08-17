@@ -1,7 +1,7 @@
 import { ageFromBirthYear } from "@/lib/types";
 import type {
+  BodyProfile,
   Outfit,
-  Profile,
   RenderAdjustments,
   Settings,
   WardrobeItem,
@@ -76,7 +76,7 @@ Rules:
 - "full_body" category is for one-piece garments (dresses, jumpsuits, overalls).`;
 
 export function composeOutfitsPrompt(opts: {
-  profile: Profile;
+  profile: BodyProfile;
   items: WardrobeItem[];
   weather: WeatherInfo | null;
   settings: Settings;
@@ -177,7 +177,7 @@ export function goofyPoseInstruction() {
  * model to generate a new photo of a referenced person.
  */
 export function outfitEditPrompt(opts: {
-  profile: Profile;
+  profile: BodyProfile;
   items: WardrobeItem[];
   outfit: Pick<Outfit, "title" | "styling_notes"> | null;
   adjustments?: RenderAdjustments | null;
@@ -200,7 +200,7 @@ ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
 }
 
 export function renderOutfitPrompt(opts: {
-  profile: Profile;
+  profile: BodyProfile;
   items: WardrobeItem[];
   outfit: Pick<Outfit, "title" | "styling_notes"> | null;
   personImageCount?: number;
@@ -284,7 +284,7 @@ RULES:
 }
 
 export const BASE_RENDER_PROMPT = (
-  profile: Profile,
+  profile: BodyProfile,
   personImageCount = 1,
   adjustments?: RenderAdjustments | null
 ) => `${identityLock(personImageCount)}

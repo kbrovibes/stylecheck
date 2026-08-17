@@ -34,11 +34,26 @@ export async function PATCH(
     return NextResponse.json({ error: "no editable fields" }, { status: 400 });
   }
 
+  const { data: existing } = await supabase
+    .from("sc_wardrobe_items")
+    .select("id, user_id, person_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const { data: ok } = existing.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: existing.person_id })
+    : { data: existing.user_id === user.id };
+  if (!ok) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
+
   const { data, error } = await supabase
     .from("sc_wardrobe_items")
     .update(update)
     .eq("id", id)
-    .eq("user_id", user.id)
     .select()
     .maybeSingle();
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
+import { getActivePerson } from "@/lib/person";
 import { imgUrls } from "@/lib/storage";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import GenerateButton from "@/components/fits/generate-button";
@@ -32,10 +33,13 @@ export default async function FitsPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
+  const { person } = await getActivePerson(supabase, user);
+  const goofyMode = (await getOrCreateSettings(supabase, user.id)).goofy_mode;
 
   let query = supabase
     .from("sc_outfits")
     .select("*")
+    .eq("person_id", person.id)
     .eq("deleted", false)
     .order("created_at", { ascending: false });
   if (occasion && occasion in OCCASION_LABELS) {
@@ -43,12 +47,12 @@ export default async function FitsPage({
   }
   const [{ data: outfitsData }, { data: itemsData }] = await Promise.all([
     query,
-    supabase.from("sc_wardrobe_items").select("*").eq("deleted", false),
+    supabase
+      .from("sc_wardrobe_items")
+      .select("*")
+      .eq("person_id", person.id)
+      .eq("deleted", false),
   ]);
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const goofyMode = authUser
-    ? (await getOrCreateSettings(supabase, authUser.id)).goofy_mode
-    : false;
 
   const outfits = (outfitsData ?? []) as Outfit[];
   const items = (itemsData ?? []) as WardrobeItem[];

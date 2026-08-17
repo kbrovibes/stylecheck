@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
-import { getOrCreateProfile, getOrCreateSettings } from "@/lib/account";
+import { getOrCreateSettings } from "@/lib/account";
 import { renderOutfitRecord } from "@/lib/render";
-import type { Outfit } from "@/lib/types";
+import type { Outfit, Person } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -32,12 +32,27 @@ export async function POST(
   }
   const outfit = outfitData as Outfit;
 
+  const { data: ok } = outfit.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: outfit.person_id })
+    : { data: outfit.user_id === user.id };
+  if (!ok) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
+  const { data: personData } = await supabase
+    .from("sc_people")
+    .select("*")
+    .eq("id", outfit.person_id!)
+    .single();
+  if (!personData) {
+    return NextResponse.json({ error: "profile not found" }, { status: 404 });
+  }
+
   try {
-    const [profile, settings] = await Promise.all([
-      getOrCreateProfile(supabase, user),
-      getOrCreateSettings(supabase, user.id),
-    ]);
-    const path = await renderOutfitRecord(supabase, user.id, outfit, profile, settings, { goofy });
+    const settings = await getOrCreateSettings(supabase, user.id);
+    const path = await renderOutfitRecord(supabase, user.id, outfit, personData as Person, settings, { goofy });
     return NextResponse.json({ render_path: path });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Render failed";

@@ -27,10 +27,18 @@ export async function POST(
     .from("sc_wardrobe_items")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user.id)
     .maybeSingle();
   if (!data) return NextResponse.json({ error: "not found" }, { status: 404 });
   const item = data as WardrobeItem;
+  const { data: ok } = item.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: item.person_id })
+    : { data: item.user_id === user.id };
+  if (!ok) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
 
   try {
     const settings = await getOrCreateSettings(supabase, user.id);
@@ -73,11 +81,11 @@ export async function POST(
     await supabase
       .from("sc_wardrobe_items")
       .update({ catalog_image_path: path, catalog_source: "generated" })
-      .eq("id", item.id)
-      .eq("user_id", user.id);
+      .eq("id", item.id);
 
     await supabase.from("sc_renders").insert({
       user_id: user.id,
+      person_id: item.person_id,
       subject_type: "item_catalog",
       subject_id: item.id,
       storage_path: path,

@@ -88,6 +88,21 @@
   scene refreshed, queue consumed.
 - Hero height reduced so the category sheet fits on screen when opened.
 
+### v2.0 — 2026-08-17
+
+- **Profiles (people) within an account**: every photo, item, fit, and render now
+  belongs to a person (`sc_people`); person switcher in the top bar with "+ New
+  profile"; existing data auto-migrated to a default person.
+- **Profile sharing**: share any person you own by email as viewer or manager
+  (Sharing card on the profile page). Grants resolve by login email, so they work
+  before the invitee's first sign-in. Enforced in the database (RLS via
+  `sc_can_view_person` / `sc_can_manage_person`), not just UI; viewers get
+  read-only pages, managers can upload/edit/render.
+- Image proxy authorizes cross-account file access by table reference
+  (`sc_can_view_path`) — no storage migration needed.
+- Nightly crons (scene, restyle, rerender) iterate people, using each owner's
+  model settings.
+
 ## Backlog
 
 | # | Item | Why |

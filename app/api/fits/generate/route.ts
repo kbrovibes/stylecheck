@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
-import { getOrCreateProfile, getOrCreateSettings } from "@/lib/account";
+import { getOrCreateSettings } from "@/lib/account";
+import { canManage, getActivePerson } from "@/lib/person";
 import { composeOutfits } from "@/lib/ai";
 import { getWeather } from "@/lib/weather";
 import { blockingGaps, computeCoverage } from "@/lib/coverage";
@@ -24,12 +25,19 @@ export async function POST(request: Request) {
         ? body.occasion
         : undefined;
 
-    const [profile, settings, { data: itemsData }] = await Promise.all([
-      getOrCreateProfile(supabase, user),
+    const { person, role } = await getActivePerson(supabase, user);
+    if (!canManage(role)) {
+      return NextResponse.json(
+        { error: "You have view-only access to this profile." },
+        { status: 403 }
+      );
+    }
+    const [settings, { data: itemsData }] = await Promise.all([
       getOrCreateSettings(supabase, user.id),
       supabase
         .from("sc_wardrobe_items")
         .select("*")
+        .eq("person_id", person.id)
         .eq("deleted", false)
         .eq("enabled", true),
     ]);
@@ -38,7 +46,7 @@ export async function POST(request: Request) {
       const { data: photosData } = await supabase
         .from("sc_user_photos")
         .select("id, kind, deleted")
-        .eq("user_id", user.id)
+        .eq("person_id", person.id)
         .eq("deleted", false);
       const cov = computeCoverage(items, (photosData ?? []) as UserPhoto[]);
       const gaps = blockingGaps(cov).filter((g) => !g.includes("photo"));
@@ -53,12 +61,12 @@ export async function POST(request: Request) {
     }
 
     let weather: WeatherInfo | null = null;
-    if (profile.lat && profile.lon && profile.place_name) {
+    if (person.lat && person.lon && person.place_name) {
       try {
         weather = await getWeather({
-          lat: profile.lat,
-          lon: profile.lon,
-          place: profile.place_name,
+          lat: person.lat,
+          lon: person.lon,
+          place: person.place_name,
         });
       } catch {
         weather = null;
@@ -66,7 +74,7 @@ export async function POST(request: Request) {
     }
 
     const plans = await composeOutfits(settings, {
-      profile,
+      profile: person,
       items,
       weather,
       count,
@@ -84,6 +92,7 @@ export async function POST(request: Request) {
 
     const rows = plans.map((p) => ({
       user_id: user.id,
+      person_id: person.id,
       title: p.title,
       item_ids: p.item_ids,
       occasion: p.occasion,

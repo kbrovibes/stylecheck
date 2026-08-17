@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
-import type { Profile } from "@/lib/types";
+import type { Person } from "@/lib/types";
 
 function toFtIn(cm: number | null) {
   if (!cm) return "";
@@ -18,15 +18,21 @@ function toLb(kg: number | null) {
   return `${Math.round(kg * 2.20462)} lb`;
 }
 
-export default function MeasurementsForm({ profile }: { profile: Profile }) {
+export default function MeasurementsForm({
+  person,
+  readOnly = false,
+}: {
+  person: Person;
+  readOnly?: boolean;
+}) {
   const router = useRouter();
-  const [displayName, setDisplayName] = useState(profile.display_name ?? "");
+  const [displayName, setDisplayName] = useState(person.name ?? "");
   const [age, setAge] = useState(
-    profile.birth_year ? String(new Date().getFullYear() - profile.birth_year) : ""
+    person.birth_year ? String(new Date().getFullYear() - person.birth_year) : ""
   );
-  const [heightCm, setHeightCm] = useState(profile.height_cm?.toString() ?? "");
-  const [weightKg, setWeightKg] = useState(profile.weight_kg?.toString() ?? "");
-  const [zip, setZip] = useState(profile.zip_code ?? "");
+  const [heightCm, setHeightCm] = useState(person.height_cm?.toString() ?? "");
+  const [weightKg, setWeightKg] = useState(person.weight_kg?.toString() ?? "");
+  const [zip, setZip] = useState(person.zip_code ?? "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; warn: boolean } | null>(null);
 
@@ -37,7 +43,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        display_name: displayName,
+        name: displayName,
         age: age ? Number(age) : null,
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
@@ -59,7 +65,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
   }
 
   const inputCls =
-    "w-full rounded-xl border hairline bg-ivory px-4 py-2.5 text-[14px] outline-none transition-colors focus:border-camel/60 focus:bg-paper";
+    "w-full rounded-xl border hairline bg-ivory px-4 py-2.5 text-[14px] outline-none transition-colors focus:border-camel/60 focus:bg-paper disabled:opacity-60";
 
   return (
     <div className="space-y-5">
@@ -68,6 +74,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
         <input
           className={inputCls}
           value={displayName}
+          disabled={readOnly}
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="How should we address you?"
         />
@@ -87,6 +94,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
             type="number"
             inputMode="numeric"
             value={age}
+          disabled={readOnly}
             onChange={(e) => setAge(e.target.value)}
             placeholder="36"
           />
@@ -105,6 +113,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
             type="number"
             inputMode="numeric"
             value={heightCm}
+          disabled={readOnly}
             onChange={(e) => setHeightCm(e.target.value)}
             placeholder="175"
           />
@@ -123,6 +132,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
             type="number"
             inputMode="decimal"
             value={weightKg}
+          disabled={readOnly}
             onChange={(e) => setWeightKg(e.target.value)}
             placeholder="72"
           />
@@ -133,6 +143,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
         <input
           className={inputCls}
           value={zip}
+          disabled={readOnly}
           onChange={(e) => setZip(e.target.value)}
           placeholder="94105"
         />
@@ -143,9 +154,13 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
         mannequin.
       </p>
       <div className="flex items-center gap-3">
+        {readOnly ? (
+          <p className="text-[12px] text-ink-faint">View-only access.</p>
+        ) : (
         <Button onClick={save} disabled={saving}>
           {saving ? "Saving…" : "Save profile"}
         </Button>
+        )}
         {msg && (
           <span
             className={`text-[13px] ${msg.warn ? "text-camel-deep" : "text-moss"}`}

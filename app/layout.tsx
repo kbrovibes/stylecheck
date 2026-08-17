@@ -3,6 +3,7 @@ import { Inter, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import NextTopLoader from "nextjs-toploader";
 import { createClient } from "@/lib/supabase/server";
+import { getActivePerson, listPeople } from "@/lib/person";
 import Nav from "@/components/nav";
 import "./globals.css";
 
@@ -39,11 +40,23 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
+  let switcher: { people: { id: string; name: string; role: "owner" | "manager" | "viewer" }[]; activeId: string } | null = null;
+  if (user) {
+    const [{ person }, all] = await Promise.all([
+      getActivePerson(supabase, user),
+      listPeople(supabase, user),
+    ]);
+    switcher = {
+      people: all.map((p) => ({ id: p.person.id, name: p.person.name, role: p.role })),
+      activeId: person.id,
+    };
+  }
+
   return (
     <html lang="en" className={`${inter.variable} ${instrument.variable}`}>
       <body className="min-h-screen">
         <NextTopLoader color="#9A7B4F" height={2} showSpinner={false} shadow={false} />
-        {user && <Nav email={user.email ?? ""} />}
+        {user && <Nav email={user.email ?? ""} switcher={switcher} />}
         <main
           className={
             user
