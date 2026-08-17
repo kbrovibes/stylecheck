@@ -136,67 +136,40 @@ export default async function TodayPage() {
         />
       )}
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Weather */}
-        <Card className="md:col-span-2">
-          {weather ? (
-            <div>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="eyebrow">{weather.place}</p>
-                  <p className="mt-1 text-5xl font-semibold tracking-tight">
-                    {weather.temp_f}°
-                    <span className="ml-3 serif-accent text-2xl text-ink-faint">
-                      {weather.condition.toLowerCase()}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-[13px] text-ink-faint">
-                    H {weather.high_f}° · L {weather.low_f}°
-                    {weather.precip_chance > 20 && ` · ${weather.precip_chance}% rain`}
-                  </p>
-                </div>
-                <Badge tone="camel">{weather.season}</Badge>
-              </div>
-              <p className="mt-5 border-t hairline pt-4 text-sm leading-relaxed text-ink-soft">
-                {weather.clothing_hint}
-              </p>
-            </div>
-          ) : (
-            <div className="flex h-full flex-col justify-center py-4 text-center">
-              <p className="serif-accent text-xl text-ink-soft">
-                What&apos;s the weather wearing?
-              </p>
-              <p className="mt-1 text-sm text-ink-faint">
-                Add your ZIP code and we&apos;ll style around the forecast.
-              </p>
-              <Link
-                href="/profile"
-                className="mx-auto mt-4 rounded-full border hairline bg-paper px-4 py-2 text-[13px] font-medium hover:bg-ivory"
-              >
-                Set location
-              </Link>
-            </div>
-          )}
-        </Card>
-
-        {/* Stats */}
-        <Card>
-          <p className="eyebrow mb-4">Your closet</p>
-          <div className="space-y-4">
-            <Link href="/wardrobe" className="flex items-baseline justify-between group">
-              <span className="text-sm text-ink-soft group-hover:text-ink">Pieces</span>
-              <span className="text-2xl font-semibold">{itemCount ?? 0}</span>
-            </Link>
-            <Link href="/fits" className="flex items-baseline justify-between group">
-              <span className="text-sm text-ink-soft group-hover:text-ink">Fits</span>
-              <span className="text-2xl font-semibold">{outfits.length}</span>
-            </Link>
-            <Link href="/profile" className="flex items-baseline justify-between group">
-              <span className="text-sm text-ink-soft group-hover:text-ink">Photos</span>
-              <span className="text-2xl font-semibold">{photoCount ?? 0}</span>
-            </Link>
-          </div>
-        </Card>
+      {/* Slim info strip: weather is a profile attribute, not a hero feature */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-2xl border hairline bg-paper px-5 py-3.5 text-[13px]">
+        {weather ? (
+          <>
+            <span className="font-medium">
+              {weather.temp_f}° {weather.condition.toLowerCase()}
+            </span>
+            <span className="text-ink-faint">
+              H {weather.high_f}° · L {weather.low_f}°
+              {weather.precip_chance > 20 ? ` · ${weather.precip_chance}% rain` : ""}
+            </span>
+            <span
+              className="hidden min-w-0 flex-1 truncate text-ink-soft lg:inline"
+              title={weather.clothing_hint}
+            >
+              {weather.clothing_hint}
+            </span>
+          </>
+        ) : (
+          <Link href="/profile" className="text-ink-faint transition-colors hover:text-ink">
+            Add a ZIP in the profile for weather-aware styling →
+          </Link>
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-4">
+          <Link href="/wardrobe" className="text-ink-soft transition-colors hover:text-ink">
+            <span className="font-semibold text-ink">{itemCount}</span> pieces
+          </Link>
+          <Link href="/fits" className="text-ink-soft transition-colors hover:text-ink">
+            <span className="font-semibold text-ink">{outfits.length}</span> fits
+          </Link>
+          <Link href="/profile" className="text-ink-soft transition-colors hover:text-ink">
+            <span className="font-semibold text-ink">{photoCount}</span> photos
+          </Link>
+        </span>
       </div>
 
       {/* Setup checklist */}
