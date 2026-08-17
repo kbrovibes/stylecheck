@@ -79,6 +79,15 @@
 - Delete buttons on photos/render history always visible on touch devices.
 - Premium serif wordmark ("STYLECHECK." — tracked caps, gold period).
 
+### v1.8 — 2026-08-17
+
+- Goofy mode: Settings toggle; each fit gets an optional identity-locked comedy-pose
+  render (🤪 on tiles/detail, generated on demand, `outfit_goofy` in history; one-time
+  batch generated for existing fits). Face/person stays 100% the base render.
+- Nightly age-aware restyle verified: 10 fresh fits composed + rendered at 2am,
+  scene refreshed, queue consumed.
+- Hero height reduced so the category sheet fits on screen when opened.
+
 ## Backlog
 
 | # | Item | Why |
