@@ -28,11 +28,24 @@
 - Mobile-first layout: bottom tab bar navigation on phones (settings + sign-out in
   the top bar), responsive headings and page padding.
 
+### v1.2 — 2026-08-16
+
+- Face-safe previews: person photos and fit cards crop from the top (face stays
+  visible); large render views letterbox instead of cropping.
+- Render tuning: body-calibration dials (build / shoulders / waist, −2..+2) plus a
+  free-text note; preview the tuned render side-by-side, then save or discard.
+  Saved calibration persists on the profile and applies to all future outfit renders.
+- Admin section in Settings (k4rthikr@gmail.com): storage used vs. free-tier pool
+  with per-folder breakdown, user/item/outfit/render counts, renders by model —
+  backed by a SECURITY DEFINER SQL function with the email gate in the database.
+- Renamed shared Supabase projects: kbro-db1 (snobaddy, opencourt, deadcode,
+  stylecheck) and kbro-db2 (stonkbro, brokebro, marketmath).
+
 ## Backlog
 
 | # | Item | Why |
 |---|---|---|
-| 1 | **Dedicated Supabase project migration** | Currently squatting in the shared "snobaddy" project (`sc_` prefix) because of the free-tier 2-project cap. A dedicated project isolates auth, storage quotas, and blast radius. Migrate when a slot frees up or on upgrade. |
+| 1 | **Dedicated Supabase project migration** | Currently squatting in the shared "kbro-db1" project (`sc_` prefix) because of the free-tier 2-project cap. A dedicated project isolates auth, storage quotas, and blast radius. Migrate when a slot frees up or on upgrade. |
 | 2 | **Glasses / eyewear render support** | Settings toggle already exists (disabled). Needs eyewear item uploads + render prompts that swap glasses without breaking likeness. |
 | 3 | **Web search for official product images** | Instead of generating catalogue shots, find the item's official retail image online — cheaper, pixel-accurate, no generation drift. Fall back to generation for unbranded pieces. |
 | 4 | **OpenAI `gpt-image-1` reference-image support** | Current OpenAI path uses text-only generation, which can't preserve likeness. The images/edits endpoint accepts reference photos — needed before OpenAI is a real render alternative. |
@@ -43,4 +56,4 @@
 | 9 | **Web push notifications** | PWA base (manifest, icons, installable, mobile tab bar) shipped in v1.1. Remaining: web-push setup like stonkbro/snobaddy — morning "today's fit" notification using live weather. |
 | 10 | **Dedupe detection on upload** | Embedding/hash similarity to catch re-uploads of the same garment before they pollute the catalogue. |
 | 11 | **Multi-country ZIP support** | Geocoding currently assumes US zips (zippopotam.us supports more — needs country selector in profile). |
-| 12 | **Rename shared Supabase projects to neutral names** | The shared DB project is displayed as "snobaddy" but actually backs stonkbro, snobaddy, opencourt, and stylecheck. Rename display names to a neutral convention (`kbro-db1`, `kbro-db2`, …) via dashboard or management API (`PATCH /v1/projects/{ref}` — display-name only; the ref/URL `zwwkcwdqsplztlmyfpyf` never changes, so zero code impact). Do together with a doc mapping which apps live in which db. |
+| ~~12~~ | ~~**Rename shared Supabase projects to neutral names**~~ | ✅ Done 2026-08-16. Renamed via management API after scanning all apps for display-name dependencies (none — apps connect by ref/URL). Mapping: **kbro-db1** (`zwwkcwdqsplztlmyfpyf`) backs snobaddy, opencourt, deadcode, stylecheck; **kbro-db2** (`enbevnxmowcqdypqyyio`) backs stonkbro, brokebro, marketmath. |

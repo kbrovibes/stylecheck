@@ -26,6 +26,15 @@ export type PhotoKind = "selfie" | "full_body" | "half_body" | "unknown";
 
 export type Provider = "gemini" | "openai";
 
+// User-verified silhouette corrections applied on top of height/weight.
+// Each dial is -2..+2, 0 = as inferred from photos.
+export interface RenderAdjustments {
+  build: number; // leaner .. more muscular
+  shoulders: number; // narrower .. broader
+  waist: number; // slimmer .. fuller
+  note?: string; // free-text correction, e.g. "slightly rounder face"
+}
+
 export interface Profile {
   id: string;
   email: string | null;
@@ -38,6 +47,7 @@ export interface Profile {
   lon: number | null;
   place_name: string | null;
   base_render_path: string | null;
+  render_adjustments: RenderAdjustments | null;
   created_at: string;
   updated_at: string;
 }

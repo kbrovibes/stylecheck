@@ -1,4 +1,47 @@
-import type { Outfit, Profile, Settings, WardrobeItem, WeatherInfo } from "@/lib/types";
+import type {
+  Outfit,
+  Profile,
+  RenderAdjustments,
+  Settings,
+  WardrobeItem,
+  WeatherInfo,
+} from "@/lib/types";
+
+const DIAL_PHRASES: Record<string, string[]> = {
+  build: [
+    "noticeably leaner and less muscular than the reference suggests",
+    "slightly leaner, softer muscle definition",
+    "",
+    "slightly more toned and athletic",
+    "noticeably more muscular and built",
+  ],
+  shoulders: [
+    "noticeably narrower shoulders",
+    "slightly narrower shoulders",
+    "",
+    "slightly broader shoulders",
+    "noticeably broader shoulders",
+  ],
+  waist: [
+    "noticeably slimmer waist and midsection",
+    "slightly slimmer waist",
+    "",
+    "slightly fuller waist and midsection",
+    "noticeably fuller waist and midsection",
+  ],
+};
+
+function bodyCalibration(adj: RenderAdjustments | null | undefined): string {
+  if (!adj) return "";
+  const clamp = (n: number) => Math.max(-2, Math.min(2, Math.round(n || 0)));
+  const lines = (["build", "shoulders", "waist"] as const)
+    .map((k) => DIAL_PHRASES[k][clamp(adj[k]) + 2])
+    .filter(Boolean);
+  if (adj.note?.trim()) lines.push(adj.note.trim());
+  if (!lines.length) return "";
+  return `\nBODY CALIBRATION (user-verified corrections — the reference photos slightly misrepresent their real physique; apply these on top of height/weight, but NEVER let them alter the face):
+${lines.map((l) => `- ${l}`).join("\n")}`;
+}
 
 export const CLASSIFY_PROMPT = `You are a fashion cataloguer for a personal wardrobe app.
 Look at this image and classify it. Respond with JSON only, matching this schema:
@@ -102,6 +145,7 @@ export function renderOutfitPrompt(opts: {
   items: WardrobeItem[];
   outfit: Pick<Outfit, "title" | "styling_notes"> | null;
   personImageCount?: number;
+  adjustments?: RenderAdjustments | null;
 }) {
   const { profile, items, outfit } = opts;
   const itemDesc = items
@@ -113,7 +157,7 @@ TASK: Re-photograph this same person in a photorealistic full-body studio fashio
 
 REQUIREMENTS:
 - The garments must match the item images faithfully — same colors, patterns, and details; do not redesign them.
-- Body proportions must match their real build: height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg. Render an honest, realistic silhouette for that height/weight.
+- Body proportions must match their real build: height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg. Render an honest, realistic silhouette for that height/weight.${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 - Full frame, head to shoes fully visible, standing, relaxed natural pose, camera at chest height, natural expression consistent with the reference photos.
 - Clean minimal studio background: soft ivory seamless backdrop, soft even lighting, subtle shadow.
 - Editorial catalogue quality, 3:4 portrait aspect.
@@ -126,12 +170,16 @@ export const CATALOG_IMAGE_PROMPT = `Create a clean e-commerce product photo of 
 - Soft studio lighting, no props, no person, no text or watermarks.
 - Square aspect ratio.`;
 
-export const BASE_RENDER_PROMPT = (profile: Profile, personImageCount = 1) => `${identityLock(personImageCount)}
+export const BASE_RENDER_PROMPT = (
+  profile: Profile,
+  personImageCount = 1,
+  adjustments?: RenderAdjustments | null
+) => `${identityLock(personImageCount)}
 
 TASK: Re-photograph this same person as a photorealistic full-body studio photo.
 
 REQUIREMENTS:
-- Realistic body proportions for height ${profile.height_cm ?? "average"} cm and weight ${profile.weight_kg ?? "average"} kg — honest silhouette, no slimming.
+- Realistic body proportions for height ${profile.height_cm ?? "average"} cm and weight ${profile.weight_kg ?? "average"} kg — honest silhouette, no slimming.${bodyCalibration(adjustments ?? profile.render_adjustments)}
 - Wearing a plain fitted heather-grey t-shirt and slim dark jeans, plain white sneakers.
 - Full frame head to feet, standing straight, arms relaxed, facing camera, natural expression consistent with the reference photos.
 - Soft ivory seamless studio backdrop, even lighting, 3:4 portrait.`;

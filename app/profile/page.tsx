@@ -131,6 +131,7 @@ export default async function ProfilePage() {
             history={renders}
             historyUrls={renderUrls}
             hasPhotos={photos.length > 0}
+            savedAdjustments={profile.render_adjustments}
           />
         </Card>
       </section>

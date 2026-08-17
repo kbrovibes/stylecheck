@@ -50,7 +50,7 @@ export default function PhotoGrid({
             <img
               src={urls[p.storage_path]}
               alt={KIND_LABEL[p.kind]}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-top"
             />
           ) : (
             <div className="h-full w-full shimmer" />

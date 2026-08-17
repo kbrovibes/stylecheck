@@ -111,7 +111,7 @@ export default async function FitsPage({
                     <img
                       src={urls[o.render_path]}
                       alt={o.title ?? "Fit"}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
                     />
                   ) : (
                     <div className="grid h-full grid-cols-2 gap-1 p-3">

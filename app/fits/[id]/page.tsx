@@ -97,7 +97,7 @@ export default async function FitDetailPage({
                 <img
                   src={urls[outfit.render_path]}
                   alt={outfit.title ?? "Fit render"}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
@@ -225,7 +225,7 @@ export default async function FitDetailPage({
                     <img
                       src={urls[r.storage_path]}
                       alt="Previous render"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-top"
                     />
                   ) : null}
                 </div>

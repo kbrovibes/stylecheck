@@ -3,6 +3,7 @@ import type {
   Outfit,
   OutfitPlan,
   Profile,
+  RenderAdjustments,
   Settings,
   WardrobeItem,
   WeatherInfo,
@@ -67,9 +68,13 @@ export async function generateCatalogImage(settings: Settings, original: ImageIn
 export async function generateBaseRender(
   settings: Settings,
   profile: Profile,
-  photos: ImageInput[]
+  photos: ImageInput[],
+  adjustments?: RenderAdjustments | null
 ) {
-  return imageCall(settings)(BASE_RENDER_PROMPT(profile, photos.length), photos);
+  return imageCall(settings)(
+    BASE_RENDER_PROMPT(profile, photos.length, adjustments),
+    photos
+  );
 }
 
 export async function renderOutfitImage(

@@ -24,8 +24,8 @@ renders of you wearing them — head to shoes.
 ### ⚠️ Shared Supabase project
 
 The Supabase free tier is at its 2-project limit, so StyleCheck lives **inside the
-shared project `zwwkcwdqsplztlmyfpyf` ("snobaddy")** — the same project that backs
-stonkbro/snobaddy/opencourt:
+shared project `zwwkcwdqsplztlmyfpyf` ("kbro-db1")** — the same project that backs
+snobaddy/opencourt/deadcode:
 
 - All tables are prefixed `sc_` and RLS-scoped to the signed-in user.
 - Storage uses a dedicated private bucket named `stylecheck` (paths are `{userId}/…`).

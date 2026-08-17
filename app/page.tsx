@@ -200,7 +200,7 @@ export default async function TodayPage() {
                     <img
                       src={urls[o.render_path]}
                       alt={o.title ?? "Outfit"}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
