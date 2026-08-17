@@ -2,6 +2,9 @@
 
 Personal wardrobe catalogue + AI fit checks — **rendered on you**.
 
+**Live:** https://stylecheck-mu.vercel.app · GitHub: [kbrovibes/stylecheck](https://github.com/kbrovibes/stylecheck)
+(Note: `stylecheck.vercel.app` was taken by another project; Vercel assigned the `-mu` alias.)
+
 Upload photos of your clothes and yourself. StyleCheck classifies every piece into a
 retail-style catalogue, builds a profile that knows your height, weight, and local
 weather, then acts as a modern-minimal stylist: composing outfits from *your* wardrobe,
