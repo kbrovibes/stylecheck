@@ -5,6 +5,8 @@ import { getOrCreateSettings } from "@/lib/account";
 import { imgUrls } from "@/lib/storage";
 import { Badge, Card, Eyebrow } from "@/components/ui";
 import RenderButton from "@/components/fits/render-button";
+import RenderCarousel from "@/components/fits/render-carousel";
+import ZoomImage from "@/components/lightbox";
 import VariationLinks, {
   type VariationDisplay,
 } from "@/components/fits/variation-links";
@@ -104,16 +106,30 @@ export default async function FitDetailPage({
         {/* Render */}
         <div>
           <div className="overflow-hidden rounded-2xl border hairline bg-paper">
-            <div className="aspect-[3/4] bg-ivory">
-              {displayPath && urls[displayPath] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={urls[displayPath]}
-                  alt={outfit.title ?? "Fit render"}
-                  className="h-full w-full object-contain"
+            <div className="bg-ivory">
+              {goofyMode && outfit.goofy_render_path && outfit.render_path ? (
+                <RenderCarousel
+                  slides={[
+                    { url: urls[outfit.goofy_render_path], label: "\u{1F92A} goofy" },
+                    { url: urls[outfit.render_path], label: "classic" },
+                  ]}
+                  zoomable
+                />
+              ) : displayPath && urls[displayPath] ? (
+                <RenderCarousel
+                  slides={[
+                    {
+                      url: urls[displayPath],
+                      label:
+                        goofyMode && displayPath === outfit.goofy_render_path
+                          ? "\u{1F92A} goofy"
+                          : (outfit.title ?? "Fit render"),
+                    },
+                  ]}
+                  zoomable
                 />
               ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
+                <div className="flex aspect-[3/4] flex-col items-center justify-center gap-2 p-8 text-center">
                   <p className="serif-accent text-2xl text-ink-soft">
                     Not yet photographed.
                   </p>
@@ -241,10 +257,10 @@ export default async function FitDetailPage({
               <div key={r.id} className="w-36 shrink-0">
                 <div className="aspect-[3/4] overflow-hidden rounded-xl bg-ivory">
                   {urls[r.storage_path] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <ZoomImage
                       src={urls[r.storage_path]}
                       alt="Previous render"
+                      caption={r.model}
                       className="h-full w-full object-cover object-top"
                     />
                   ) : null}

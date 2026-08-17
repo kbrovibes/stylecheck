@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ZoomImage from "@/components/lightbox";
 
 export default function ImageToggle({
   catalogUrl,
@@ -20,8 +21,12 @@ export default function ImageToggle({
     <div>
       <div className="aspect-square overflow-hidden rounded-2xl border hairline bg-paper">
         {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={alt} className="h-full w-full object-contain" />
+          <ZoomImage
+            src={url}
+            alt={alt}
+            caption={view === "catalog" ? "catalogue shot" : "original photo"}
+            className="h-full w-full object-contain"
+          />
         ) : (
           <div className="flex h-full items-center justify-center">
             <span className="serif-accent text-ink-faint">no image</span>

@@ -5,6 +5,7 @@ import { imgUrls } from "@/lib/storage";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import GenerateButton from "@/components/fits/generate-button";
 import TileRenderButton from "@/components/fits/tile-render-button";
+import RenderCarousel from "@/components/fits/render-carousel";
 import {
   OCCASION_LABELS,
   type Occasion,
@@ -124,7 +125,15 @@ export default async function FitsPage({
                       🤪 no goofy take yet
                     </span>
                   )}
-                  {(goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : o.render_path && urls[o.render_path]) ? (
+                  {goofyMode && o.goofy_render_path && o.render_path ? (
+                    <RenderCarousel
+                      slides={[
+                        { url: urls[o.goofy_render_path], label: "\u{1F92A} goofy" },
+                        { url: urls[o.render_path], label: "classic" },
+                      ]}
+                      imgClass="object-cover object-top"
+                    />
+                  ) : (goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : o.render_path && urls[o.render_path]) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : urls[o.render_path!]}
