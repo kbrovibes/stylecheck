@@ -64,6 +64,21 @@
   + 2 face photos) on the Today page, a likeness hint on the profile photos section,
   and fit generation errors that name the exact gaps.
 
+### v1.6 — 2026-08-16
+
+- **Likeness fix for fit renders**: references are now interleaved and labeled
+  ("THE PERSON" → base render, "ITEM n" → each piece) so the model binds identity
+  correctly instead of inventing a stock model.
+- Hint corrections now update the item itself (category, name, metadata) via
+  re-classification before re-extracting the product shot.
+- More fits per run: default 10 (cap 16), "EXACTLY N" prompting, and outfits with a
+  hallucinated item id are salvaged instead of dropped.
+- Hero fills the viewport height; quick ↻ render button on every fit tile.
+- App-like navigation: optimistic tab highlight, page dim + top progress bar while
+  the next page loads; slimmer PWA safe-area bottom bar.
+- Delete buttons on photos/render history always visible on touch devices.
+- Premium serif wordmark ("STYLECHECK." — tracked caps, gold period).
+
 ## Backlog
 
 | # | Item | Why |

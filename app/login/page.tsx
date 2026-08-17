@@ -33,22 +33,18 @@ export default function LoginPage() {
             rendered on your own frame — before you get dressed.
           </p>
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[13px] font-semibold tracking-[0.28em] uppercase">
-            Style
-          </span>
-          <span className="serif-accent text-[17px] text-camel">check</span>
+        <div className="select-none">
+          <span className="font-serif text-[15px] uppercase tracking-[0.3em]">Stylecheck</span>
+          <span className="font-serif text-[17px] text-camel">.</span>
         </div>
       </div>
 
       {/* Sign-in panel */}
       <div className="flex w-full items-center justify-center p-8 lg:w-1/2">
         <div className="w-full max-w-sm fade-up">
-          <div className="mb-10 flex items-baseline gap-1.5 lg:hidden">
-            <span className="text-[15px] font-semibold tracking-[0.28em] uppercase">
-              Style
-            </span>
-            <span className="serif-accent text-[19px] text-camel">check</span>
+          <div className="mb-10 select-none lg:hidden">
+            <span className="font-serif text-[17px] uppercase tracking-[0.3em]">Stylecheck</span>
+            <span className="font-serif text-[19px] text-camel">.</span>
           </div>
           <p className="eyebrow">Welcome</p>
           <h1 className="text-3xl font-semibold tracking-tight">

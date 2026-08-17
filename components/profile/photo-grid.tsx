@@ -120,7 +120,7 @@ export default function PhotoGrid({
               onClick={() => setConfirmDelete(p.id)}
               disabled={pending !== null}
               aria-label="Remove photo"
-              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-ink/55 text-[13px] leading-none text-ivory opacity-0 backdrop-blur-sm transition-opacity hover:bg-ink/80 group-hover:opacity-100"
+              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-ink/55 text-[13px] leading-none text-ivory opacity-70 backdrop-blur-sm transition-opacity hover:bg-ink/80 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
             >
               ×
             </button>

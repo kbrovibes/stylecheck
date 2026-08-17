@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
+import NextTopLoader from "nextjs-toploader";
 import { createClient } from "@/lib/supabase/server";
 import Nav from "@/components/nav";
 import "./globals.css";
@@ -41,6 +42,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${instrument.variable}`}>
       <body className="min-h-screen">
+        <NextTopLoader color="#9A7B4F" height={2} showSpinner={false} shadow={false} />
         {user && <Nav email={user.email ?? ""} />}
         <main
           className={

@@ -51,7 +51,7 @@ export default function GenerateButton() {
       const res = await fetch("/api/fits/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ occasion: occasion || undefined, count: 6 }),
+        body: JSON.stringify({ occasion: occasion || undefined, count: 10 }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {

@@ -304,7 +304,7 @@ export default function RenderPanel({
                         }
                       }}
                       aria-label="Remove render"
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-ink/55 text-[12px] leading-none text-ivory opacity-0 backdrop-blur-sm transition-opacity hover:bg-ink/80 group-hover/hist:opacity-100"
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-ink/55 text-[12px] leading-none text-ivory opacity-70 backdrop-blur-sm transition-opacity hover:bg-ink/80 hover:opacity-100 sm:opacity-0 sm:group-hover/hist:opacity-100"
                     >
                       ×
                     </button>

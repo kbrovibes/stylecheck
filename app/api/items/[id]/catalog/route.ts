@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
-import { generateCatalogImage } from "@/lib/ai";
+import { generateCatalogImage, reclassifyItem } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
 import type { WardrobeItem } from "@/lib/types";
 
@@ -35,6 +35,36 @@ export async function POST(
   try {
     const settings = await getOrCreateSettings(supabase, user.id);
     const original = await downloadAsImageInput(supabase, item.original_image_path);
+    // A user hint corrects the whole item, not just the photo: re-derive the
+    // catalogue metadata first so the extraction targets the right thing.
+    if (hint) {
+      try {
+        const corrected = await reclassifyItem(settings, original, item, hint);
+        const { data: updated } = await supabase
+          .from("sc_wardrobe_items")
+          .update({
+            category: corrected.category ?? item.category,
+            subcategory: corrected.subcategory ?? item.subcategory,
+            name: corrected.name ?? item.name,
+            description: corrected.description ?? item.description,
+            colors: corrected.colors ?? item.colors,
+            primary_color: corrected.primary_color ?? item.primary_color,
+            pattern: corrected.pattern ?? item.pattern,
+            material: corrected.material ?? item.material,
+            seasons: corrected.seasons ?? item.seasons,
+            formality: corrected.formality ?? item.formality,
+            style_tags: corrected.style_tags ?? item.style_tags,
+            analysis: { corrected, hint },
+            model_used: settings.text_model,
+          })
+          .eq("id", item.id)
+          .select()
+          .single();
+        if (updated) Object.assign(item, updated);
+      } catch (e) {
+        console.error("reclassify with hint failed, extracting with hint only:", e);
+      }
+    }
     const result = await generateCatalogImage(settings, original, item, hint);
 
     const path = `${user.id}/catalog/${item.id}-${Date.now()}.${extFromMime(result.mimeType)}`;

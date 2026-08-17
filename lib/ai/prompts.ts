@@ -97,7 +97,8 @@ export function composeOutfitsPrompt(opts: {
   optional.push("NEVER include eyewear/glasses (unsupported)");
 
   return `You are a modern minimal fashion stylist — think quiet luxury, clean lines, intentional color.
-Build ${count} distinct outfits for this person from ONLY the wardrobe items listed below.
+Build EXACTLY ${count} distinct outfits for this person from ONLY the wardrobe items listed below. Reuse pieces across outfits freely — a small wardrobe still yields many combinations (different pairings, layers, occasions). Do not return fewer than ${count} unless the wardrobe makes it truly impossible.
+CRITICAL: every value in "item_ids" must be copied character-for-character from an id in the wardrobe list. Never invent or alter ids.
 
 PERSON: height ${profile.height_cm ?? "?"} cm, weight ${profile.weight_kg ?? "?"} kg.
 ${weather ? `CURRENT WEATHER in ${weather.place}: ${weather.condition}, ${weather.temp_f}°F (high ${weather.high_f} / low ${weather.low_f}), season: ${weather.season}.` : "Weather unknown — cover multiple seasons."}
@@ -133,10 +134,13 @@ Respond with JSON only:
 }`;
 }
 
-function identityLock(personImageCount: number) {
+function identityLock(personImageCount: number, labeled = false) {
   const n = personImageCount || 1;
+  const ref = labeled
+    ? `The image${n > 1 ? "s" : ""} labeled "THE PERSON" show${n > 1 ? "" : "s"} the real person`
+    : `The first ${n} image${n > 1 ? "s" : ""} show${n > 1 ? "" : "s"} the real person`;
   return `IDENTITY LOCK — the single most important instruction:
-The first ${n} image${n > 1 ? "s" : ""} show${n > 1 ? "" : "s"} the real person. Their face is immutable ground truth — treat this task as re-photographing the SAME person, not generating a similar one.
+${ref}. Their face is immutable ground truth — treat this task as re-photographing the SAME person, not generating a similar one.
 - Copy the exact facial geometry: eye shape and spacing, eyebrows, nose, lips, jawline, cheekbones, ears.
 - Copy the exact skin tone and texture, complexion marks, hairstyle, hairline, and any facial hair precisely as shown.
 - Do NOT beautify, slim, de-age, stylize, or "improve" the face in any way. The output must be instantly recognizable as this exact individual, as if taken in the same photo session.
@@ -155,9 +159,9 @@ export function renderOutfitPrompt(opts: {
   const itemDesc = items
     .map((i) => `${i.category}: ${i.name ?? i.subcategory ?? "item"} (${i.primary_color ?? i.colors.join(", ")})`)
     .join("; ");
-  return `${identityLock(opts.personImageCount ?? 1)}
+  return `${identityLock(opts.personImageCount ?? 1, true)}
 
-TASK: Re-photograph this same person in a photorealistic full-body studio fashion shot, now wearing exactly these items from their wardrobe (shown in the images after the person reference${(opts.personImageCount ?? 1) > 1 ? "s" : ""}): ${itemDesc}.
+TASK: Re-photograph this same person in a photorealistic full-body studio fashion shot, now wearing exactly the labeled wardrobe items: ${itemDesc}.
 
 REQUIREMENTS:
 - The garments must match the item images faithfully — same colors, patterns, and details; do not redesign them.
@@ -166,6 +170,30 @@ REQUIREMENTS:
 - Clean minimal studio background: soft ivory seamless backdrop, soft even lighting, subtle shadow.
 - Editorial catalogue quality, 3:4 portrait aspect.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
+}
+
+export function reclassifyItemPrompt(
+  current: Pick<WardrobeItem, "name" | "category" | "subcategory" | "description">,
+  hint: string
+) {
+  return `You are a fashion cataloguer. This item was previously catalogued as: ${current.name ?? "?"} (${current.category}${current.subcategory ? `, ${current.subcategory}` : ""}) — ${current.description ?? ""}.
+
+The user corrected it: "${hint}"
+
+Look at the photo again with that correction in mind — the user knows their own wardrobe, so TRUST their correction over your own reading. Return the corrected catalogue entry as JSON only, exactly this schema:
+{
+  "category": "top" | "bottom" | "outerwear" | "footwear" | "accessory" | "belt" | "eyewear" | "headwear" | "bag" | "full_body",
+  "subcategory": string,
+  "name": string,
+  "description": string,
+  "colors": string[],
+  "primary_color": string,
+  "pattern": string,
+  "material": string,
+  "seasons": ("spring"|"summer"|"fall"|"winter")[],
+  "formality": "casual" | "smart_casual" | "business" | "formal" | "athletic" | "lounge",
+  "style_tags": string[]
+}`;
 }
 
 export function catalogImagePrompt(

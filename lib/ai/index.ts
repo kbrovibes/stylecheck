@@ -1,5 +1,6 @@
 import type {
   ClassificationResult,
+  ItemAnalysis,
   Outfit,
   OutfitPlan,
   Profile,
@@ -8,13 +9,20 @@ import type {
   WardrobeItem,
   WeatherInfo,
 } from "@/lib/types";
-import { geminiImage, geminiJson, type ImageInput } from "./gemini";
+import {
+  geminiImage,
+  geminiImageParts,
+  geminiJson,
+  type ImageInput,
+  type MixedPart,
+} from "./gemini";
 import { openaiImage, openaiJson } from "./openai";
 import {
   BASE_RENDER_PROMPT,
   catalogImagePrompt,
   CLASSIFY_PROMPT,
   composeOutfitsPrompt,
+  reclassifyItemPrompt,
   renderOutfitPrompt,
   wardrobeScenePrompt,
 } from "./prompts";
@@ -57,9 +65,27 @@ export async function composeOutfits(
   const prompt = composeOutfitsPrompt({ ...opts, settings });
   const res = await jsonCall<{ outfits: OutfitPlan[] }>(settings)(prompt);
   const validIds = new Set(opts.items.map((i) => i.id));
-  return (res.outfits ?? []).filter(
-    (o) => o.item_ids?.length && o.item_ids.every((id) => validIds.has(id))
-  );
+  // Salvage outfits with a hallucinated id instead of dropping them wholesale:
+  // strip invalid ids and keep the outfit if it still has a wearable core.
+  return (res.outfits ?? [])
+    .map((o) => ({
+      ...o,
+      item_ids: (o.item_ids ?? []).filter((id) => validIds.has(id)),
+      variations: (o.variations ?? []).filter(
+        (v) => validIds.has(v.swap_out) && validIds.has(v.swap_in)
+      ),
+    }))
+    .filter((o) => o.item_ids.length >= 2);
+}
+
+/** Re-derive an item's catalogue metadata from its photo + a user correction. */
+export async function reclassifyItem(
+  settings: Settings,
+  image: ImageInput,
+  current: WardrobeItem,
+  hint: string
+): Promise<ItemAnalysis> {
+  return jsonCall<ItemAnalysis>(settings)(reclassifyItemPrompt(current, hint), [image]);
 }
 
 export async function generateCatalogImage(
@@ -108,5 +134,31 @@ export async function renderOutfitImage(
     ...opts,
     personImageCount: opts.personImages.length,
   });
-  return imageCall(settings)(prompt, [...opts.personImages, ...opts.itemImages]);
+  if (settings.provider === "openai") {
+    return openaiImage({
+      model: settings.image_model,
+      prompt,
+      images: [...opts.personImages, ...opts.itemImages],
+    });
+  }
+  // Interleave labeled references so the model binds them correctly: the
+  // person reference is authoritative for identity; each item is named.
+  const parts: MixedPart[] = [
+    {
+      text: `THE PERSON — authoritative identity reference. The generated photo MUST show exactly this person (same face, hair, skin tone, build). This is not a model or a stand-in:`,
+    },
+    ...opts.personImages.map((image) => ({ image })),
+    ...opts.items.flatMap((item, i) => {
+      const img = opts.itemImages[i];
+      if (!img) return [];
+      return [
+        {
+          text: `ITEM ${i + 1} — ${item.name ?? item.subcategory ?? item.category} (${item.category}${item.primary_color ? `, ${item.primary_color}` : ""}). Dress the person in exactly this piece:`,
+        } as MixedPart,
+        { image: img } as MixedPart,
+      ];
+    }),
+    { text: prompt },
+  ];
+  return geminiImageParts({ model: settings.image_model, parts });
 }

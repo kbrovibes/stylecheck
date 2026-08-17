@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signedUrls } from "@/lib/storage";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import GenerateButton from "@/components/fits/generate-button";
+import TileRenderButton from "@/components/fits/tile-render-button";
 import {
   OCCASION_LABELS,
   type Occasion,
@@ -106,6 +107,7 @@ export default async function FitsPage({
                 className="group overflow-hidden rounded-2xl border hairline bg-paper transition-shadow hover:shadow-lg hover:shadow-ink/5"
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-ivory">
+                  <TileRenderButton outfitId={o.id} hasRender={!!o.render_path} />
                   {o.render_path && urls[o.render_path] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

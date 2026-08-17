@@ -39,6 +39,39 @@ export async function geminiJson<T>(opts: {
   return JSON.parse(stripFences(text)) as T;
 }
 
+export type MixedPart = { text: string } | { image: ImageInput };
+
+/**
+ * Image generation from interleaved text/image parts. Labeling each reference
+ * image with a text part right before it ("THE PERSON:", "ITEM 1:") makes the
+ * model bind references correctly — critical for identity preservation.
+ */
+export async function geminiImageParts(opts: {
+  model: string;
+  parts: MixedPart[];
+}): Promise<{ data: string; mimeType: string }> {
+  const ai = getClient();
+  const parts: object[] = opts.parts.map((p) =>
+    "text" in p
+      ? { text: p.text }
+      : { inlineData: { mimeType: p.image.mimeType, data: p.image.data } }
+  );
+  const res = await ai.models.generateContent({
+    model: opts.model,
+    contents: [{ role: "user", parts }],
+  });
+  for (const c of res.candidates ?? []) {
+    for (const part of c.content?.parts ?? []) {
+      const inline = (part as { inlineData?: { data?: string; mimeType?: string } }).inlineData;
+      if (inline?.data) {
+        return { data: inline.data, mimeType: inline.mimeType ?? "image/png" };
+      }
+    }
+  }
+  const textOut = res.text?.slice(0, 300);
+  throw new Error(`Gemini returned no image${textOut ? `: ${textOut}` : ""}`);
+}
+
 /** Image generation (nano banana). Returns base64 PNG. */
 export async function geminiImage(opts: {
   model: string;

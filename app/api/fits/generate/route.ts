@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const count = Math.min(Math.max(Number(body.count) || 6, 1), 12);
+    const count = Math.min(Math.max(Number(body.count) || 10, 1), 16);
     const occasion =
       typeof body.occasion === "string" && body.occasion.length
         ? body.occasion
