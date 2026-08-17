@@ -17,7 +17,12 @@ export function computeWardrobeHash(items: WardrobeItem[]) {
 }
 
 function pick(items: WardrobeItem[], cats: Category[], n: number) {
-  return items.filter((i) => cats.includes(i.category)).slice(0, n);
+  // Prefer pieces that already have a clean catalogue shot — those references
+  // reproduce far more faithfully than raw uploaded photos.
+  return items
+    .filter((i) => cats.includes(i.category))
+    .sort((a, b) => Number(!!b.catalog_image_path) - Number(!!a.catalog_image_path))
+    .slice(0, n);
 }
 
 export async function loadSceneItems(supabase: SupabaseClient, userId: string) {

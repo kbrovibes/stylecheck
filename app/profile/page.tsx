@@ -108,9 +108,27 @@ export default async function ProfilePage() {
       </div>
 
       <section className="mt-12">
+        <h2 className="mb-5 text-xl font-semibold tracking-tight">
+          Your <span className="serif-accent text-camel">render</span>
+        </h2>
+        <Card>
+          <RenderPanel
+            currentUrl={baseRenderUrl}
+            history={renders}
+            historyUrls={renderUrls}
+            hasPhotos={photos.length > 0}
+            savedAdjustments={profile.render_adjustments}
+          />
+        </Card>
+      </section>
+      <section className="mt-12">
         <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-xl font-semibold tracking-tight">
-            Your <span className="serif-accent text-camel">photos</span>
+            {photos.length > 0 ? (
+              <>Your <span className="serif-accent text-camel">photos</span></>
+            ) : (
+              <>Add your <span className="serif-accent text-camel">photos</span></>
+            )}
           </h2>
           <p className="text-[12px] text-ink-faint">
             Selfies and full-body shots are auto-detected · tap one to make it
@@ -137,20 +155,6 @@ export default async function ProfilePage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="mb-5 text-xl font-semibold tracking-tight">
-          Your <span className="serif-accent text-camel">render</span>
-        </h2>
-        <Card>
-          <RenderPanel
-            currentUrl={baseRenderUrl}
-            history={renders}
-            historyUrls={renderUrls}
-            hasPhotos={photos.length > 0}
-            savedAdjustments={profile.render_adjustments}
-          />
-        </Card>
-      </section>
     </div>
   );
 }

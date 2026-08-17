@@ -198,7 +198,8 @@ COMPOSITION — follow this layout EXACTLY:
 - RIGHT THIRD, BOTTOM SHELF: a low tray/shelf with: ${itemNames.tray.join("; ") || "small leather accessories"}.
 
 RULES:
-- Render ONLY the garments listed (reference images of the actual items are provided) — reproduce their real colors, patterns and materials faithfully. Do not invent extra items.
+- Each provided reference image shows ONE real item from this wardrobe. Reproduce every referenced item 1:1 — exact same color, pattern, material, cut and details — as if the actual garment were photographed inside this closet. Do NOT substitute similar-looking items, do NOT invent extra items, do NOT generify.
+- The listed items above map to the reference images in the same order.
 - No people, no mannequins, no text, no labels.
 - Everything tidy, generous negative space, quiet-luxury aesthetic (think Aesop store meets The Row lookbook).`;
 }

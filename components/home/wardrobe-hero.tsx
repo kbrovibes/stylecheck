@@ -68,8 +68,8 @@ export default function WardrobeHero({
   const active = groups.find((g) => g.key === open);
 
   return (
-    <div className="relative mb-10 overflow-hidden rounded-3xl border hairline bg-ink">
-      <div className="relative aspect-[16/10] sm:aspect-[16/8]">
+    <div className="relative mb-10 -mx-4 overflow-hidden border-y hairline bg-ink sm:mx-0 sm:rounded-3xl sm:border">
+      <div className="relative aspect-[4/3] sm:aspect-[16/9]">
         {sceneUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
