@@ -66,16 +66,25 @@ export default function Nav({ email }: { email: string }) {
     setPendingHref(null);
   }, [pathname]);
 
-  // Hide the bottom tab bar while the on-screen keyboard is open — otherwise
-  // iOS pushes fixed-bottom elements up and they float around input pages.
+  // Hide the bottom tab bar while a text field is focused (keyboard open) —
+  // otherwise iOS pushes fixed-bottom elements up and they float around.
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const onResize = () =>
-      setKeyboardOpen(window.innerHeight - vv.height > 150);
-    vv.addEventListener("resize", onResize);
-    return () => vv.removeEventListener("resize", onResize);
+    const editable = (el: EventTarget | null) => {
+      const t = el as HTMLElement | null;
+      return (
+        !!t &&
+        (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
+      );
+    };
+    const onFocusIn = (e: FocusEvent) => setKeyboardOpen(editable(e.target));
+    const onFocusOut = () => setKeyboardOpen(false);
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+    };
   }, []);
 
   function go(href: string) {
