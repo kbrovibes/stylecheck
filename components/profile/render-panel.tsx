@@ -279,7 +279,7 @@ export default function RenderPanel({
               <p className="eyebrow mb-3">Render history</p>
               <div className="flex flex-wrap gap-3">
                 {history.map((r) => (
-                  <div key={r.id} className="w-20">
+                  <div key={r.id} className="group/hist relative w-20">
                     <div className="aspect-[3/4] overflow-hidden rounded-lg border hairline bg-ivory">
                       {historyUrls[r.storage_path] && (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -290,6 +290,24 @@ export default function RenderPanel({
                         />
                       )}
                     </div>
+                    <button
+                      onClick={async () => {
+                        setError(null);
+                        const res = await fetch(`/api/renders/${r.id}`, {
+                          method: "DELETE",
+                        });
+                        if (!res.ok) {
+                          const j = await res.json().catch(() => ({}));
+                          setError(j.error ?? "Could not remove render");
+                        } else {
+                          router.refresh();
+                        }
+                      }}
+                      aria-label="Remove render"
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-ink/55 text-[12px] leading-none text-ivory opacity-0 backdrop-blur-sm transition-opacity hover:bg-ink/80 group-hover/hist:opacity-100"
+                    >
+                      ×
+                    </button>
                     <div className="mt-1.5">
                       <Badge>{r.model.replace(/^gemini-|^gpt-/, "")}</Badge>
                     </div>

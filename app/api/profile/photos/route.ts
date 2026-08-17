@@ -65,8 +65,26 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { supabase, user } = ctx;
-  const { id, is_primary } = await request.json();
+  const { id, is_primary, deleted } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  // Soft-delete: the image file is kept (never-delete policy).
+  if (deleted) {
+    const { data, error } = await supabase
+      .from("sc_user_photos")
+      .update({ deleted: true, is_primary: false })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const { count } = await supabase
+      .from("sc_user_photos")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("deleted", false);
+    return NextResponse.json({ photo: data, remaining: count ?? 0 });
+  }
 
   if (is_primary) {
     await supabase

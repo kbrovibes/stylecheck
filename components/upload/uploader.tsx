@@ -23,18 +23,15 @@ interface Entry {
   path?: string;
   error?: string;
   kind?: "person" | "item" | "unusable";
-  name?: string;
-  category?: Category;
+  items?: { id: string; name: string; category: Category }[];
   photoKind?: PhotoKind;
 }
 
 interface ClassifyResult {
   path: string;
   kind: "person" | "item" | "unusable" | "error";
-  id?: string;
-  name?: string;
-  category?: Category;
-  photo_kind?: PhotoKind;
+  photo?: { id: string; photo_kind: PhotoKind } | null;
+  items?: { id: string; name: string; category: Category }[];
   error?: string;
 }
 
@@ -139,9 +136,8 @@ export default function Uploader() {
               patch(entry.id, {
                 status: "done",
                 kind: r.kind,
-                name: r.name,
-                category: r.category,
-                photoKind: r.photo_kind,
+                items: r.items ?? [],
+                photoKind: r.photo?.photo_kind,
               });
             }
           }
@@ -160,7 +156,7 @@ export default function Uploader() {
   );
 
   const finished = entries.filter((e) => e.status === "done");
-  const itemCount = finished.filter((e) => e.kind === "item").length;
+  const itemCount = finished.reduce((n, e) => n + (e.items?.length ?? 0), 0);
   const personCount = finished.filter((e) => e.kind === "person").length;
   const unusableCount = finished.filter((e) => e.kind === "unusable").length;
   const failedCount = entries.filter((e) => e.status === "failed").length;
@@ -237,19 +233,29 @@ export default function Uploader() {
                   )}
                 </div>
                 <div className="p-3">
-                  {e.status === "done" && e.kind === "item" && (
+                  {e.status === "done" && (e.items?.length ?? 0) > 0 && (
                     <>
                       <p className="truncate text-[12px] font-medium">
-                        {e.name ?? "Item"}
+                        {e.items![0].name ?? "Item"}
+                        {e.items!.length > 1 && (
+                          <span className="text-ink-faint"> +{e.items!.length - 1}</span>
+                        )}
                       </p>
-                      <div className="mt-1.5">
-                        <Badge tone="camel">
-                          {e.category ? CATEGORY_LABELS[e.category] : "Item"}
-                        </Badge>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {e.items!.slice(0, 3).map((it, idx) => (
+                          <Badge key={idx} tone="camel">
+                            {CATEGORY_LABELS[it.category] ?? it.category}
+                          </Badge>
+                        ))}
+                        {e.kind === "person" && (
+                          <Badge tone="moss">
+                            {(e.photoKind ?? "photo").replace("_", " ")}
+                          </Badge>
+                        )}
                       </div>
                     </>
                   )}
-                  {e.status === "done" && e.kind === "person" && (
+                  {e.status === "done" && e.kind === "person" && !e.items?.length && (
                     <>
                       <p className="truncate text-[12px] font-medium">
                         Profile photo

@@ -83,12 +83,12 @@ const BUCKET = "stylecheck";
 // Duplicated from lib/ai/prompts.ts (CLASSIFY_PROMPT) — keep in sync if the app
 // schema changes. Scripts are plain Node and can't import the TS lib.
 const CLASSIFY_PROMPT = `You are a fashion cataloguer for a personal wardrobe app.
-Look at this image and classify it. Respond with JSON only, matching this schema:
+Look at this image, detect the person (if any) AND every distinct wardrobe item visible — including items being WORN by a person. Respond with JSON only, matching this schema:
 
 {
   "kind": "person" | "item" | "unusable",
   "person": { "photo_kind": "selfie" | "full_body" | "half_body" | "unknown", "notes": string },
-  "item": {
+  "items": [{
     "category": "top" | "bottom" | "outerwear" | "footwear" | "accessory" | "belt" | "eyewear" | "headwear" | "bag" | "full_body",
     "subcategory": string,
     "name": string,
@@ -100,13 +100,14 @@ Look at this image and classify it. Respond with JSON only, matching this schema
     "seasons": ("spring"|"summer"|"fall"|"winter")[],
     "formality": "casual" | "smart_casual" | "business" | "formal" | "athletic" | "lounge",
     "style_tags": string[]
-  }
+  }]
 }
 
 Rules:
-- If the image shows a person (face or body visible, worn outfit, selfie), kind = "person". Include "person", omit "item".
-- If it shows clothing/footwear/accessories (laid flat, hung, or on a surface), kind = "item". Include "item", omit "person".
-- If it is blurry, irrelevant, or not fashion related, kind = "unusable".
+- If a person is visible (face or body, selfie, mirror shot), kind = "person" and include "person". ALSO list each clearly identifiable garment/footwear/accessory they are wearing in "items" — each piece as its own entry.
+- If it shows only clothing/footwear/accessories (laid flat, hung, on a surface), kind = "item" and list EVERY distinct piece in "items", omit "person".
+- Only include items you can describe confidently. Do not catalogue underwear or socks unless clearly the subject.
+- If the image is blurry, irrelevant, or not fashion related, kind = "unusable" with empty "items".
 - "full_body" category is for one-piece garments (dresses, jumpsuits, overalls).`;
 
 // ---------- resolve user ----------
@@ -161,6 +162,7 @@ async function processFile(file) {
   );
 
   const modelUsed = `${MODEL} (backfill)`;
+  const labels = [];
   if (c.kind === "person") {
     const { error } = await supabase.from("sc_user_photos").insert({
       user_id: userId,
@@ -171,10 +173,10 @@ async function processFile(file) {
     });
     if (error) throw new Error(`insert photo: ${error.message}`);
     summary.persons++;
-    return `person (${c.person?.photo_kind ?? "unknown"})`;
+    labels.push(`person (${c.person?.photo_kind ?? "unknown"})`);
   }
-  if (c.kind === "item" && c.item) {
-    const it = c.item;
+  // A single photo can yield several wardrobe items (worn or flat-lay).
+  for (const it of c.items ?? []) {
     const { error } = await supabase.from("sc_wardrobe_items").insert({
       user_id: userId,
       category: it.category,
@@ -195,8 +197,9 @@ async function processFile(file) {
     });
     if (error) throw new Error(`insert item: ${error.message}`);
     summary.items[it.category] = (summary.items[it.category] ?? 0) + 1;
-    return `${it.category}: ${it.name ?? it.subcategory ?? "item"}`;
+    labels.push(`${it.category}: ${it.name ?? it.subcategory ?? "item"}`);
   }
+  if (labels.length) return labels.join(" · ");
   summary.unusable++;
   return "unusable";
 }

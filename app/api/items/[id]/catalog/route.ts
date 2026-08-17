@@ -8,10 +8,13 @@ import type { WardrobeItem } from "@/lib/types";
 export const maxDuration = 120;
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const body = await request.json().catch(() => ({}));
+  const hint: string | null =
+    typeof body?.hint === "string" ? body.hint.slice(0, 300) : null;
   let ctx;
   try {
     ctx = await requireUser();
@@ -32,7 +35,7 @@ export async function POST(
   try {
     const settings = await getOrCreateSettings(supabase, user.id);
     const original = await downloadAsImageInput(supabase, item.original_image_path);
-    const result = await generateCatalogImage(settings, original);
+    const result = await generateCatalogImage(settings, original, item, hint);
 
     const path = `${user.id}/catalog/${item.id}-${Date.now()}.${extFromMime(result.mimeType)}`;
     await uploadBase64(supabase, path, result.data, result.mimeType);

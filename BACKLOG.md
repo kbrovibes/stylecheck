@@ -41,6 +41,22 @@
 - Renamed shared Supabase projects: kbro-db1 (snobaddy, opencourt, deadcode,
   stylecheck) and kbro-db2 (stonkbro, brokebro, marketmath).
 
+### v1.3 — 2026-08-16
+
+- Multi-item extraction: one photo (selfie, mirror shot, flat-lay) now yields every
+  visible garment/accessory as its own wardrobe item, plus the profile photo when a
+  person is detected. Backfill script updated to match.
+- Auto product shots: catalogue images are generated in the background right after
+  upload; item page adds a context hint ("this is a jeans") for re-extraction.
+- Wardrobe scene home page: an AI-composed walk-in-closet image built from your
+  actual pieces — clickable hotspot regions (rail / shelves) open animated category
+  sheets, slow ken-burns motion, "Restyle" forces async regeneration, and a nightly
+  cron regenerates only when the wardrobe hash changed (cached scene = instant load).
+- Deletable render history and profile photos (soft delete, files kept); deleting a
+  photo offers to regenerate the base render; active renders are protected.
+- Premium full-bleed app icon: gold serif monogram with double hairline frame on
+  deep ink — no baked corners, so home-screen masking looks right.
+
 ## Backlog
 
 | # | Item | Why |

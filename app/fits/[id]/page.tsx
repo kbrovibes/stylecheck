@@ -45,6 +45,7 @@ export default async function FitDetailPage({
     supabase
       .from("sc_renders")
       .select("*")
+      .eq("deleted", false)
       .eq("subject_type", "outfit")
       .eq("subject_id", id)
       .order("created_at", { ascending: false }),

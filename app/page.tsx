@@ -2,9 +2,18 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateProfile } from "@/lib/account";
 import { getWeather } from "@/lib/weather";
-import { signedUrls } from "@/lib/storage";
+import { signedUrl, signedUrls } from "@/lib/storage";
+import { computeWardrobeHash } from "@/lib/scene";
 import { Card, EmptyState, Eyebrow, Badge } from "@/components/ui";
-import type { Outfit, WeatherInfo } from "@/lib/types";
+import WardrobeHero, { type HeroGroup } from "@/components/home/wardrobe-hero";
+import type { Category, Outfit, WardrobeItem, WeatherInfo } from "@/lib/types";
+
+const HERO_GROUPS: { key: string; label: string; cats: Category[]; href: string }[] = [
+  { key: "hanging", label: "Tops & layers", cats: ["top", "outerwear", "full_body"], href: "/wardrobe?category=top" },
+  { key: "folded", label: "Bottoms", cats: ["bottom"], href: "/wardrobe?category=bottom" },
+  { key: "shoes", label: "Footwear", cats: ["footwear"], href: "/wardrobe?category=footwear" },
+  { key: "tray", label: "Accessories", cats: ["accessory", "belt", "bag", "headwear", "eyewear"], href: "/wardrobe?category=accessory" },
+];
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +26,14 @@ export default async function TodayPage() {
 
   const profile = await getOrCreateProfile(supabase, user);
 
-  const [{ count: itemCount }, { count: photoCount }, { data: fits }] =
+  const [{ data: itemsData }, { count: photoCount }, { data: fits }] =
     await Promise.all([
       supabase
         .from("sc_wardrobe_items")
-        .select("*", { count: "exact", head: true })
-        .eq("deleted", false),
+        .select("*")
+        .eq("deleted", false)
+        .eq("enabled", true)
+        .order("created_at", { ascending: true }),
       supabase
         .from("sc_user_photos")
         .select("*", { count: "exact", head: true })
@@ -34,6 +45,37 @@ export default async function TodayPage() {
         .order("created_at", { ascending: false })
         .limit(4),
     ]);
+
+  const items = (itemsData ?? []) as WardrobeItem[];
+  const itemCount = items.length;
+
+  // Wardrobe hero: cached scene image + grouped items for the hotspot sheets.
+  const heroThumbPaths = items
+    .slice(0, 40)
+    .map((i) => i.catalog_image_path ?? i.original_image_path);
+  const [sceneUrlResolved, heroThumbUrls] = await Promise.all([
+    profile.wardrobe_scene_path
+      ? signedUrl(supabase, profile.wardrobe_scene_path, 604800).catch(() => null)
+      : Promise.resolve(null),
+    signedUrls(supabase, heroThumbPaths, 3600),
+  ]);
+  const heroGroups: HeroGroup[] = HERO_GROUPS.map((g) => ({
+    key: g.key,
+    label: g.label,
+    href: g.href,
+    items: items
+      .filter((i) => g.cats.includes(i.category))
+      .slice(0, 8)
+      .map((i) => ({
+        id: i.id,
+        name: i.name ?? i.subcategory ?? i.category,
+        url: heroThumbUrls[i.catalog_image_path ?? i.original_image_path] ?? null,
+      })),
+  }));
+  const sceneStale =
+    !!profile.wardrobe_scene_path &&
+    itemCount > 0 &&
+    computeWardrobeHash(items) !== profile.wardrobe_scene_hash;
 
   let weather: WeatherInfo | null = null;
   if (profile.lat && profile.lon && profile.place_name) {
@@ -80,6 +122,15 @@ export default async function TodayPage() {
           {greeting}, <span className="serif-accent text-camel">{firstName}</span>
         </h1>
       </div>
+
+      {itemCount > 0 && (
+        <WardrobeHero
+          sceneUrl={sceneUrlResolved}
+          status={profile.wardrobe_scene_status}
+          stale={sceneStale}
+          groups={heroGroups}
+        />
+      )}
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Weather */}

@@ -17,12 +17,17 @@ export default function ItemActions({
   const [shooting, setShooting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState("");
 
   async function generateCatalog() {
     setShooting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/items/${itemId}/catalog`, { method: "POST" });
+      const res = await fetch(`/api/items/${itemId}/catalog`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hint: hint.trim() || undefined }),
+      });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error ?? `Failed (${res.status})`);
@@ -60,13 +65,21 @@ export default function ItemActions({
 
   return (
     <div className="space-y-3">
+      <input
+        type="text"
+        value={hint}
+        onChange={(e) => setHint(e.target.value)}
+        disabled={shooting}
+        placeholder='Optional context for extraction — e.g. "this is a jeans"'
+        className="w-full rounded-xl border hairline bg-paper px-3.5 py-2 text-[13px] outline-none placeholder:text-ink-faint/60 focus:border-camel"
+      />
       {shooting ? (
         <div className="shimmer flex h-11 items-center justify-center rounded-full border hairline text-[13px] text-ink-soft">
-          Shooting your product…
+          Extracting your product…
         </div>
       ) : (
         <Button onClick={generateCatalog} className="w-full">
-          {hasCatalog ? "Re-shoot catalogue image" : "Generate catalogue shot"}
+          {hasCatalog ? "Re-extract product shot" : "Extract product shot"}
         </Button>
       )}
 

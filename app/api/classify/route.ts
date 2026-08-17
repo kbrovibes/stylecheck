@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
-import { downloadAsImageInput } from "@/lib/storage";
-import { classifyImage } from "@/lib/ai";
+import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
+import { classifyImage, generateCatalogImage } from "@/lib/ai";
+import type { ItemAnalysis } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -34,11 +36,39 @@ export async function POST(request: Request) {
     .eq("deleted", false);
   let claimedPrimary = (existingPhotos ?? 0) > 0;
 
+  async function insertItem(path: string, item: ItemAnalysis, analysis: object) {
+    const { data, error } = await supabase
+      .from("sc_wardrobe_items")
+      .insert({
+        user_id: user.id,
+        category: item.category,
+        subcategory: item.subcategory,
+        name: item.name,
+        description: item.description,
+        colors: item.colors ?? [],
+        primary_color: item.primary_color,
+        pattern: item.pattern,
+        material: item.material,
+        seasons: item.seasons ?? [],
+        formality: item.formality,
+        style_tags: item.style_tags ?? [],
+        original_image_path: path,
+        catalog_source: "pending",
+        analysis,
+        model_used: settings.text_model,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: data.id as string, name: item.name, category: item.category };
+  }
+
   const settled = await Promise.allSettled(
     (paths as string[]).map(async (path) => {
       const image = await downloadAsImageInput(supabase, path);
       const result = await classifyImage(settings, image);
 
+      let photo: { id: string; photo_kind: string } | null = null;
       if (result.kind === "person") {
         const makePrimary = !claimedPrimary;
         if (makePrimary) claimedPrimary = true;
@@ -55,49 +85,24 @@ export async function POST(request: Request) {
           .select("id")
           .single();
         if (error) throw new Error(error.message);
-        return {
-          path,
-          kind: "person" as const,
-          id: data.id,
-          photo_kind: result.person?.photo_kind ?? "unknown",
-        };
+        photo = { id: data.id, photo_kind: result.person?.photo_kind ?? "unknown" };
       }
 
-      if (result.kind === "item" && result.item) {
-        const item = result.item;
-        const { data, error } = await supabase
-          .from("sc_wardrobe_items")
-          .insert({
-            user_id: user.id,
-            category: item.category,
-            subcategory: item.subcategory,
-            name: item.name,
-            description: item.description,
-            colors: item.colors ?? [],
-            primary_color: item.primary_color,
-            pattern: item.pattern,
-            material: item.material,
-            seasons: item.seasons ?? [],
-            formality: item.formality,
-            style_tags: item.style_tags ?? [],
-            original_image_path: path,
-            catalog_source: "pending",
-            analysis: result,
-            model_used: settings.text_model,
-          })
-          .select("id")
-          .single();
-        if (error) throw new Error(error.message);
-        return {
-          path,
-          kind: "item" as const,
-          id: data.id,
-          name: item.name,
-          category: item.category,
-        };
+      // A single photo can yield several wardrobe items (worn or flat-lay).
+      const items = [];
+      for (const item of result.items ?? []) {
+        try {
+          items.push(await insertItem(path, item, result));
+        } catch {
+          // one bad item shouldn't sink the rest of the photo
+        }
       }
 
-      return { path, kind: "unusable" as const };
+      const kind =
+        photo !== null ? ("person" as const)
+        : items.length ? ("item" as const)
+        : ("unusable" as const);
+      return { path, kind, photo, items };
     })
   );
 
@@ -107,10 +112,51 @@ export async function POST(request: Request) {
       : {
           path: (paths as string[])[i],
           kind: "error" as const,
+          photo: null,
+          items: [],
           error:
             s.reason instanceof Error ? s.reason.message : "classification failed",
         }
   );
+
+  // Auto-generate clean product shots in the background (bounded; the manual
+  // "Generate catalogue shot" button remains the fallback for any that fail).
+  const createdItemIds = results
+    .flatMap((r) => r.items ?? [])
+    .map((i) => i.id)
+    .slice(0, 12);
+  if (createdItemIds.length) {
+    after(async () => {
+      for (const itemId of createdItemIds) {
+        try {
+          const { data: item } = await supabase
+            .from("sc_wardrobe_items")
+            .select("*")
+            .eq("id", itemId)
+            .single();
+          if (!item || item.catalog_image_path) continue;
+          const original = await downloadAsImageInput(supabase, item.original_image_path);
+          const shot = await generateCatalogImage(settings, original, item);
+          const path = `${user.id}/catalog/${item.id}-${Date.now()}.${extFromMime(shot.mimeType)}`;
+          await uploadBase64(supabase, path, shot.data, shot.mimeType);
+          await supabase
+            .from("sc_wardrobe_items")
+            .update({ catalog_image_path: path, catalog_source: "generated" })
+            .eq("id", item.id);
+          await supabase.from("sc_renders").insert({
+            user_id: user.id,
+            subject_type: "item_catalog",
+            subject_id: item.id,
+            storage_path: path,
+            model: settings.image_model,
+            prompt_summary: `auto catalogue shot: ${item.name ?? item.category}`,
+          });
+        } catch (e) {
+          console.error(`auto-catalog failed for ${itemId}:`, e);
+        }
+      }
+    });
+  }
 
   return NextResponse.json({ results });
 }

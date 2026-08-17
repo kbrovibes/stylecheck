@@ -44,30 +44,34 @@ ${lines.map((l) => `- ${l}`).join("\n")}`;
 }
 
 export const CLASSIFY_PROMPT = `You are a fashion cataloguer for a personal wardrobe app.
-Look at this image and classify it. Respond with JSON only, matching this schema:
+Look at this image, detect the person (if any) AND every distinct wardrobe item visible — including items being WORN by a person. Respond with JSON only, matching this schema:
 
 {
   "kind": "person" | "item" | "unusable",
   "person": { "photo_kind": "selfie" | "full_body" | "half_body" | "unknown", "notes": string },
-  "item": {
-    "category": "top" | "bottom" | "outerwear" | "footwear" | "accessory" | "belt" | "eyewear" | "headwear" | "bag" | "full_body",
-    "subcategory": string,        // e.g. "crewneck t-shirt", "slim chinos", "chelsea boots"
-    "name": string,               // short catalogue name, e.g. "Sage Green Crewneck Tee"
-    "description": string,        // 1-2 sentence product-style description
-    "colors": string[],
-    "primary_color": string,
-    "pattern": string,            // solid, striped, plaid, graphic, ...
-    "material": string,           // best guess: cotton, denim, leather, knit, ...
-    "seasons": ("spring"|"summer"|"fall"|"winter")[],
-    "formality": "casual" | "smart_casual" | "business" | "formal" | "athletic" | "lounge",
-    "style_tags": string[]        // e.g. ["minimal", "streetwear", "classic"]
-  }
+  "items": [
+    {
+      "category": "top" | "bottom" | "outerwear" | "footwear" | "accessory" | "belt" | "eyewear" | "headwear" | "bag" | "full_body",
+      "subcategory": string,        // e.g. "crewneck t-shirt", "slim chinos", "chelsea boots"
+      "name": string,               // short catalogue name, e.g. "Sage Green Crewneck Tee"
+      "description": string,        // 1-2 sentence product-style description
+      "colors": string[],
+      "primary_color": string,
+      "pattern": string,            // solid, striped, plaid, graphic, ...
+      "material": string,           // best guess: cotton, denim, leather, knit, ...
+      "seasons": ("spring"|"summer"|"fall"|"winter")[],
+      "formality": "casual" | "smart_casual" | "business" | "formal" | "athletic" | "lounge",
+      "style_tags": string[]        // e.g. ["minimal", "streetwear", "classic"]
+    }
+  ]
 }
 
 Rules:
-- If the image shows a person (face or body visible, worn outfit, selfie), kind = "person". Include "person", omit "item".
-- If it shows clothing/footwear/accessories (laid flat, hung, or on a surface), kind = "item". Include "item", omit "person".
-- If it is blurry, irrelevant, or not fashion related, kind = "unusable".
+- If a person is visible (face or body, selfie, mirror shot), kind = "person" and include "person". ALSO list each clearly identifiable garment/footwear/accessory they are wearing in "items" — each piece as its own entry.
+- If it shows only clothing/footwear/accessories (laid flat, hung, on a surface), kind = "item" and list EVERY distinct piece in "items" (a flat-lay of 3 pieces = 3 entries), omit "person".
+- Only include items you can describe confidently (visible enough to catalogue). Skip barely visible slivers.
+- Do not catalogue underwear or socks unless they are clearly the subject of the photo.
+- If the image is blurry, irrelevant, or not fashion related, kind = "unusable" with empty "items".
 - "full_body" category is for one-piece garments (dresses, jumpsuits, overalls).`;
 
 export function composeOutfitsPrompt(opts: {
@@ -164,11 +168,40 @@ REQUIREMENTS:
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
 }
 
-export const CATALOG_IMAGE_PROMPT = `Create a clean e-commerce product photo of this exact garment/item.
-- Same item, same color, same pattern and details — do not redesign it.
+export function catalogImagePrompt(
+  item?: Pick<WardrobeItem, "name" | "category" | "subcategory" | "description" | "primary_color"> | null,
+  hint?: string | null
+) {
+  const target = item
+    ? `TARGET ITEM — extract exactly this one item from the photo (the photo may show a person wearing several pieces, or multiple items together): ${item.name ?? item.subcategory ?? item.category} — ${item.description ?? ""} (${item.category}${item.subcategory ? `, ${item.subcategory}` : ""}${item.primary_color ? `, ${item.primary_color}` : ""}).`
+    : `TARGET ITEM: the main garment/item in the photo.`;
+  return `Create a clean e-commerce product photo of one specific item from this photo.
+${target}${hint?.trim() ? `\nUSER CONTEXT (trust this over your own guess about which item is meant and what it is): ${hint.trim()}` : ""}
+- Same exact item: same color, pattern, fabric and details — do not redesign it. If it is being worn, isolate it off the body.
 - Presented as a professional catalogue shot: neatly laid flat or ghost-mannequin style, centered, on a pure white background (#FFFFFF).
-- Soft studio lighting, no props, no person, no text or watermarks.
+- Soft studio lighting, no props, no person, no other items, no text or watermarks.
 - Square aspect ratio.`;
+}
+
+export function wardrobeScenePrompt(itemNames: {
+  hanging: string[];
+  folded: string[];
+  shoes: string[];
+  tray: string[];
+}) {
+  return `Create a single wide editorial photograph of a luxurious minimal walk-in wardrobe, photographed straight-on. Ivory walls, light oak wood, brushed brass details, soft warm studio light. Aspect ratio 16:9.
+
+COMPOSITION — follow this layout EXACTLY:
+- LEFT HALF: one long brass hanging rail with the following pieces hung neatly on wooden hangers, in order: ${itemNames.hanging.join("; ") || "a few elegant garments"}.
+- RIGHT THIRD, TOP SHELF: these pieces folded in neat stacks: ${itemNames.folded.join("; ") || "folded knits and denim"}.
+- RIGHT THIRD, MIDDLE SHELF: these shoes displayed side by side: ${itemNames.shoes.join("; ") || "a pair of clean sneakers"}.
+- RIGHT THIRD, BOTTOM SHELF: a low tray/shelf with: ${itemNames.tray.join("; ") || "small leather accessories"}.
+
+RULES:
+- Render ONLY the garments listed (reference images of the actual items are provided) — reproduce their real colors, patterns and materials faithfully. Do not invent extra items.
+- No people, no mannequins, no text, no labels.
+- Everything tidy, generous negative space, quiet-luxury aesthetic (think Aesop store meets The Row lookbook).`;
+}
 
 export const BASE_RENDER_PROMPT = (
   profile: Profile,

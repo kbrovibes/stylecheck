@@ -12,10 +12,11 @@ import { geminiImage, geminiJson, type ImageInput } from "./gemini";
 import { openaiImage, openaiJson } from "./openai";
 import {
   BASE_RENDER_PROMPT,
-  CATALOG_IMAGE_PROMPT,
+  catalogImagePrompt,
   CLASSIFY_PROMPT,
   composeOutfitsPrompt,
   renderOutfitPrompt,
+  wardrobeScenePrompt,
 } from "./prompts";
 
 export type { ImageInput };
@@ -61,8 +62,24 @@ export async function composeOutfits(
   );
 }
 
-export async function generateCatalogImage(settings: Settings, original: ImageInput) {
-  return imageCall(settings)(CATALOG_IMAGE_PROMPT, [original]);
+export async function generateCatalogImage(
+  settings: Settings,
+  original: ImageInput,
+  item?: Pick<
+    WardrobeItem,
+    "name" | "category" | "subcategory" | "description" | "primary_color"
+  > | null,
+  hint?: string | null
+) {
+  return imageCall(settings)(catalogImagePrompt(item, hint), [original]);
+}
+
+export async function generateWardrobeSceneImage(
+  settings: Settings,
+  itemNames: Parameters<typeof wardrobeScenePrompt>[0],
+  referenceImages: ImageInput[]
+) {
+  return imageCall(settings)(wardrobeScenePrompt(itemNames), referenceImages);
 }
 
 export async function generateBaseRender(

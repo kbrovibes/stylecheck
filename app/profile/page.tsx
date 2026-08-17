@@ -31,6 +31,7 @@ export default async function ProfilePage() {
     supabase
       .from("sc_renders")
       .select("*")
+      .eq("deleted", false)
       .eq("user_id", user.id)
       .eq("subject_type", "profile")
       .order("created_at", { ascending: false })
