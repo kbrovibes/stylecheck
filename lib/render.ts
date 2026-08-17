@@ -20,7 +20,8 @@ export async function renderOutfitRecord(
   userId: string,
   outfit: Outfit,
   profile: Profile,
-  settings: Settings
+  settings: Settings,
+  opts?: { goofy?: boolean }
 ) {
   try {
     const personImages: ImageInput[] = [];
@@ -70,18 +71,19 @@ export async function renderOutfitRecord(
       items,
       outfit: { title: outfit.title, styling_notes: outfit.styling_notes },
       editBase: !!profile.base_render_path,
+      goofy: !!opts?.goofy,
     });
 
     const path = await uploadBase64(
       supabase,
-      `${userId}/renders/outfit-${outfit.id}-${Date.now()}.${extFromMime(image.mimeType)}`,
+      `${userId}/renders/outfit-${outfit.id}${opts?.goofy ? "-goofy" : ""}-${Date.now()}.${extFromMime(image.mimeType)}`,
       image.data,
       image.mimeType
     );
 
     await supabase.from("sc_renders").insert({
       user_id: userId,
-      subject_type: "outfit",
+      subject_type: opts?.goofy ? "outfit_goofy" : "outfit",
       subject_id: outfit.id,
       storage_path: path,
       model: settings.image_model,
@@ -89,11 +91,15 @@ export async function renderOutfitRecord(
     });
     await supabase
       .from("sc_outfits")
-      .update({
-        render_path: path,
-        render_status: "done",
-        render_model: settings.image_model,
-      })
+      .update(
+        opts?.goofy
+          ? { goofy_render_path: path, render_status: "done" }
+          : {
+              render_path: path,
+              render_status: "done",
+              render_model: settings.image_model,
+            }
+      )
       .eq("id", outfit.id);
 
     return path;

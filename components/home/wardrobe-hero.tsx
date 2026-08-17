@@ -70,7 +70,7 @@ export default function WardrobeHero({
   return (
     <div className="relative mb-10 -mx-4 overflow-hidden border-y hairline bg-ink sm:mx-0 sm:rounded-3xl sm:border">
       {/* Fill the viewport below the top bar + greeting (mobile also reserves the tab bar) */}
-      <div className="relative h-[calc(100dvh-17rem)] min-h-[380px] sm:h-[calc(100dvh-14rem)] sm:min-h-[480px] sm:max-h-[1100px]">
+      <div className="relative h-[calc(100dvh-24rem)] min-h-[320px] sm:h-[calc(100dvh-21rem)] sm:min-h-[420px] sm:max-h-[820px]">
         {sceneUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

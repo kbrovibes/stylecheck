@@ -15,9 +15,11 @@ const LOADING_COPY = [
 export default function RenderButton({
   outfitId,
   hasRender,
+  goofy = false,
 }: {
   outfitId: string;
   hasRender: boolean;
+  goofy?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -44,7 +46,11 @@ export default function RenderButton({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/fits/${outfitId}/render`, { method: "POST" });
+      const res = await fetch(`/api/fits/${outfitId}/render`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goofy }),
+      });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(json.error ?? "Render failed — try again.");
@@ -69,9 +75,9 @@ export default function RenderButton({
         {loading ? (
           <span className="serif-accent">{LOADING_COPY[copyIdx]}</span>
         ) : hasRender ? (
-          "Re-render"
+          goofy ? "Re-render goofy take 🤪" : "Re-render"
         ) : (
-          "Render on me"
+          goofy ? "Generate goofy take 🤪" : "Render on me"
         )}
       </Button>
       {loading && (

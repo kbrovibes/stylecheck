@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateSettings } from "@/lib/account";
 import { imgUrls } from "@/lib/storage";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import GenerateButton from "@/components/fits/generate-button";
@@ -37,12 +38,18 @@ export default async function FitsPage({
     query,
     supabase.from("sc_wardrobe_items").select("*").eq("deleted", false),
   ]);
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const goofyMode = authUser
+    ? (await getOrCreateSettings(supabase, authUser.id)).goofy_mode
+    : false;
+
   const outfits = (outfitsData ?? []) as Outfit[];
   const items = (itemsData ?? []) as WardrobeItem[];
   const itemById = new Map(items.map((i) => [i.id, i]));
 
   const paths = new Set<string>();
   for (const o of outfits) {
+    if (o.goofy_render_path) paths.add(o.goofy_render_path);
     if (o.render_path) {
       paths.add(o.render_path);
     } else {
@@ -107,11 +114,20 @@ export default async function FitsPage({
                 className="group overflow-hidden rounded-2xl border hairline bg-paper transition-shadow hover:shadow-lg hover:shadow-ink/5"
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-ivory">
-                  <TileRenderButton outfitId={o.id} hasRender={!!o.render_path} />
-                  {o.render_path && urls[o.render_path] ? (
+                  <TileRenderButton
+                    outfitId={o.id}
+                    hasRender={goofyMode ? !!o.goofy_render_path : !!o.render_path}
+                    goofy={goofyMode}
+                  />
+                  {goofyMode && !o.goofy_render_path && o.render_path && (
+                    <span className="absolute bottom-2 left-2 z-10 rounded-full bg-ink/60 px-2.5 py-1 text-[10px] text-ivory backdrop-blur">
+                      🤪 no goofy take yet
+                    </span>
+                  )}
+                  {(goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : o.render_path && urls[o.render_path]) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={urls[o.render_path]}
+                      src={goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : urls[o.render_path!]}
                       alt={o.title ?? "Fit"}
                       className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
                     />

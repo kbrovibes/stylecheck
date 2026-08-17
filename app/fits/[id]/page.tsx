@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateSettings } from "@/lib/account";
 import { imgUrls } from "@/lib/storage";
 import { Badge, Card, Eyebrow } from "@/components/ui";
 import RenderButton from "@/components/fits/render-button";
@@ -39,6 +40,16 @@ export default async function FitDetailPage({
     .single();
   if (!outfitData) notFound();
   const outfit = outfitData as Outfit;
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  const goofyMode = authUser
+    ? (await getOrCreateSettings(supabase, authUser.id)).goofy_mode
+    : false;
+  const displayPath =
+    goofyMode && outfit.goofy_render_path
+      ? outfit.goofy_render_path
+      : outfit.render_path;
 
   const [{ data: allItemsData }, { data: rendersData }] = await Promise.all([
     supabase.from("sc_wardrobe_items").select("*").eq("deleted", false),
@@ -46,7 +57,7 @@ export default async function FitDetailPage({
       .from("sc_renders")
       .select("*")
       .eq("deleted", false)
-      .eq("subject_type", "outfit")
+      .in("subject_type", ["outfit", "outfit_goofy"])
       .eq("subject_id", id)
       .order("created_at", { ascending: false }),
   ]);
@@ -59,6 +70,7 @@ export default async function FitDetailPage({
 
   const paths = new Set<string>();
   if (outfit.render_path) paths.add(outfit.render_path);
+  if (outfit.goofy_render_path) paths.add(outfit.goofy_render_path);
   items.forEach((i) => paths.add(i.catalog_image_path ?? i.original_image_path));
   renders.forEach((r) => paths.add(r.storage_path));
   const urls = imgUrls([...paths]);
@@ -93,10 +105,10 @@ export default async function FitDetailPage({
         <div>
           <div className="overflow-hidden rounded-2xl border hairline bg-paper">
             <div className="aspect-[3/4] bg-ivory">
-              {outfit.render_path && urls[outfit.render_path] ? (
+              {displayPath && urls[displayPath] ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={urls[outfit.render_path]}
+                  src={urls[displayPath]}
                   alt={outfit.title ?? "Fit render"}
                   className="h-full w-full object-contain"
                 />
@@ -113,8 +125,15 @@ export default async function FitDetailPage({
               )}
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
             <RenderButton outfitId={outfit.id} hasRender={!!outfit.render_path} />
+            {goofyMode && (
+              <RenderButton
+                outfitId={outfit.id}
+                hasRender={!!outfit.goofy_render_path}
+                goofy
+              />
+            )}
             {outfit.render_model && (
               <p className="mt-2 text-center text-[11px] uppercase tracking-widest text-ink-faint">
                 rendered with {outfit.render_model}

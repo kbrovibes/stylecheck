@@ -130,6 +130,7 @@ export async function renderOutfitImage(
     items: WardrobeItem[];
     outfit: Pick<Outfit, "title" | "styling_notes"> | null;
     editBase?: boolean; // true when personImages[0] is the saved base render
+    goofy?: boolean; // comedy pose, identity still locked
   }
 ) {
   if (settings.provider === "openai") {

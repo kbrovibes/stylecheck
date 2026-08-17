@@ -21,8 +21,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const url = new URL(request.url);
+  const goofyBatch = url.searchParams.get("goofy") === "1";
   const before = url.searchParams.get("before");
-  if (!before || Number.isNaN(Date.parse(before))) {
+  if (!goofyBatch && (!before || Number.isNaN(Date.parse(before)))) {
     return NextResponse.json({ error: "before=<ISO timestamp> required" }, { status: 400 });
   }
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 3, 1), 8);
@@ -46,10 +47,12 @@ export async function GET(request: Request) {
     if (r.subject_id && !latest.has(r.subject_id)) latest.set(r.subject_id, r.created_at);
   }
 
-  const queue = outfits.filter((o) => {
-    const last = latest.get(o.id);
-    return !last || Date.parse(last) < Date.parse(before);
-  });
+  const queue = goofyBatch
+    ? outfits.filter((o) => !o.goofy_render_path)
+    : outfits.filter((o) => {
+        const last = latest.get(o.id);
+        return !last || Date.parse(last) < Date.parse(before!);
+      });
 
   const results: Record<string, string> = {};
   const profiles = new Map<string, Profile>();
@@ -77,7 +80,8 @@ export async function GET(request: Request) {
         outfit.user_id,
         outfit,
         profiles.get(outfit.user_id)!,
-        settingsMap.get(outfit.user_id)!
+        settingsMap.get(outfit.user_id)!,
+        { goofy: goofyBatch }
       );
       results[outfit.id] = "done";
     } catch (e) {

@@ -120,6 +120,7 @@ export default function SettingsForm({
         generate_shoes: s.generate_shoes,
         generate_belts: s.generate_belts,
         auto_render: s.auto_render,
+        goofy_mode: s.goofy_mode,
       }),
     });
     const json = await res.json();
@@ -231,6 +232,12 @@ export default function SettingsForm({
           hint="Render every generated fit immediately (uses more image-model credits)"
           checked={s.auto_render}
           onChange={(v) => set("auto_render", v)}
+        />
+        <ToggleRow
+          label="Goofy mode"
+          hint="Fits show you doing something ridiculous — same outfit, same you, zero dignity. Generated on demand per fit."
+          checked={s.goofy_mode}
+          onChange={(v) => set("goofy_mode", v)}
         />
       </Card>
 

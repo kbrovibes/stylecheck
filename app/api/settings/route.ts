@@ -6,6 +6,7 @@ const BOOL_FIELDS = [
   "generate_shoes",
   "generate_belts",
   "auto_render",
+  "goofy_mode",
 ] as const;
 
 export async function PATCH(request: Request) {

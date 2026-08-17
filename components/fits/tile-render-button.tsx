@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 export default function TileRenderButton({
   outfitId,
   hasRender,
+  goofy = false,
 }: {
   outfitId: string;
   hasRender: boolean;
+  goofy?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -21,9 +23,11 @@ export default function TileRenderButton({
     if (busy) return;
     setBusy(true);
     setError(false);
-    const res = await fetch(`/api/fits/${outfitId}/render`, { method: "POST" }).catch(
-      () => null
-    );
+    const res = await fetch(`/api/fits/${outfitId}/render`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goofy }),
+    }).catch(() => null);
     setBusy(false);
     if (!res?.ok) {
       setError(true);
@@ -36,7 +40,17 @@ export default function TileRenderButton({
   return (
     <button
       onClick={render}
-      title={error ? "Render failed — open the fit for details" : hasRender ? "Re-render on me" : "Render on me"}
+      title={
+        error
+          ? "Render failed — open the fit for details"
+          : goofy
+            ? hasRender
+              ? "Re-render the goofy take"
+              : "Generate the goofy take"
+            : hasRender
+              ? "Re-render on me"
+              : "Render on me"
+      }
       aria-label="Render this fit on me"
       className={`absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full text-[14px] backdrop-blur-md transition-all ${
         error
@@ -48,6 +62,8 @@ export default function TileRenderButton({
         <span className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-ivory/30 border-t-ivory" />
       ) : error ? (
         "!"
+      ) : goofy ? (
+        "🤪"
       ) : (
         "↻"
       )}

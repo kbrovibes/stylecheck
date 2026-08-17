@@ -150,6 +150,27 @@ ${ref}. Their face is immutable ground truth — treat this task as re-photograp
 - If any other instruction conflicts with preserving this face, preserving the face wins.`;
 }
 
+
+const GOOFY_POSES = [
+  "a dramatic superhero landing, one fist on the ground",
+  "mid-air jump with a heel click and jazz hands",
+  "an exaggerated runway strut with a way-too-serious fashion face",
+  "riding an invisible horse",
+  "mowing with an invisible lawnmower, mid-stride",
+  "a dramatic hair-flip pose (regardless of hair length)",
+  "T-rex arms with an over-the-top roar face",
+  "the 'sudden realization I left the stove on' freeze",
+  "a very intense ballet arabesque attempted with zero training",
+  "finger guns at the camera with a wink",
+  "the classic 'sneaking away on tiptoes' pose",
+  "flexing like a 1900s circus strongman",
+];
+
+export function goofyPoseInstruction() {
+  const picks = [...GOOFY_POSES].sort(() => Math.random() - 0.5).slice(0, 3);
+  return `COMEDY POSE — instead of a standard pose, the person is doing something ridiculous. Pick whichever of these reads funniest with this outfit: ${picks.join("; or ")}. Commit to the bit — dynamic, theatrical, laugh-out-loud staging. A playful, exaggerated expression is welcome, but the face must remain 100% unmistakably the same person (same features, glasses, hair — never a caricature, never distorted).`;
+}
+
 /**
  * Edit-framing variant: used when a base render exists. Editing ONE image
  * ("change only the clothes") preserves identity far better than asking the
@@ -160,14 +181,16 @@ export function outfitEditPrompt(opts: {
   items: WardrobeItem[];
   outfit: Pick<Outfit, "title" | "styling_notes"> | null;
   adjustments?: RenderAdjustments | null;
+  goofy?: boolean;
 }) {
   const { profile, items, outfit } = opts;
   const itemDesc = items
     .map((i) => `${i.category}: ${i.name ?? i.subcategory ?? "item"} (${i.primary_color ?? i.colors.join(", ")})`)
     .join("; ");
-  return `TASK: Wardrobe swap. Edit the BASE IMAGE — change ONLY the clothing.
+  return `TASK: Wardrobe swap${opts.goofy ? " + comedy pose" : ""}. Edit the BASE IMAGE — change ONLY the clothing${opts.goofy ? " and the pose" : ""}.
 
-KEEP IDENTICAL TO THE BASE IMAGE (do not regenerate or alter): the person — their exact face, expression, hair, skin tone, facial hair, glasses/no-glasses, body proportions — plus the pose, camera framing, lighting and the ivory studio background. This must remain the same photograph of the same person, with new clothes on.
+KEEP IDENTICAL TO THE BASE IMAGE (do not regenerate or alter): the person — their exact face, ${opts.goofy ? "" : "expression, "}hair, skin tone, facial hair, glasses/no-glasses, body proportions — plus ${opts.goofy ? "the lighting and the ivory studio background" : "the pose, camera framing, lighting and the ivory studio background"}. This must remain the same person${opts.goofy ? "" : ", with new clothes on"}.
+${opts.goofy ? `\n${goofyPoseInstruction()}\n` : ""}
 
 REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
 - Each garment must match its reference image faithfully: same color, pattern, fabric and details. Do not redesign or substitute.
