@@ -21,6 +21,7 @@ export default function PersonSwitcher({
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
   const active = people.find((p) => p.id === activeId) ?? people[0];
@@ -57,6 +58,7 @@ export default function PersonSwitcher({
     const name = newName.trim();
     if (!name) return;
     setBusy(true);
+    setError(null);
     const res = await fetch("/api/people", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,9 +66,13 @@ export default function PersonSwitcher({
     });
     const json = await res.json().catch(() => ({}));
     setBusy(false);
-    setNewName("");
-    setAdding(false);
-    if (res.ok && json.person?.id) await switchTo(json.person.id);
+    if (res.ok && json.person?.id) {
+      setNewName("");
+      setAdding(false);
+      await switchTo(json.person.id);
+    } else {
+      setError(json.error ?? `Could not create profile (${res.status})`);
+    }
   }
 
   if (!active) return null;
@@ -115,6 +121,9 @@ export default function PersonSwitcher({
             </button>
           ))}
 
+          {error && (
+            <p className="px-2.5 py-1 text-[11px] text-camel-deep">{error}</p>
+          )}
           <div className="mt-1 border-t hairline pt-1.5">
             {adding ? (
               <div className="flex items-center gap-1.5 px-1.5 pb-1">
