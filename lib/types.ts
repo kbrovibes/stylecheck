@@ -113,6 +113,7 @@ export interface Outfit {
   variations: OutfitVariation[] | null;
   parent_outfit_id: string | null;
   render_path: string | null;
+  goofy_render_path: string | null;
   render_status: "none" | "pending" | "done" | "failed";
   render_model: string | null;
   score: number | null;
@@ -123,7 +124,7 @@ export interface Outfit {
 export interface RenderRecord {
   id: string;
   user_id: string;
-  subject_type: "outfit" | "profile" | "item_catalog";
+  subject_type: "outfit" | "outfit_goofy" | "profile" | "item_catalog";
   subject_id: string | null;
   storage_path: string;
   model: string;
@@ -141,6 +142,7 @@ export interface Settings {
   generate_belts: boolean;
   generate_glasses: boolean; // unsupported in v1, kept disabled
   auto_render: boolean;
+  goofy_mode: boolean;
   restyle_requested_at: string | null;
   updated_at: string;
 }
