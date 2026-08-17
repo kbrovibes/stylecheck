@@ -69,7 +69,7 @@ export async function generateBaseRender(
   profile: Profile,
   photos: ImageInput[]
 ) {
-  return imageCall(settings)(BASE_RENDER_PROMPT(profile), photos);
+  return imageCall(settings)(BASE_RENDER_PROMPT(profile, photos.length), photos);
 }
 
 export async function renderOutfitImage(
@@ -82,6 +82,9 @@ export async function renderOutfitImage(
     outfit: Pick<Outfit, "title" | "styling_notes"> | null;
   }
 ) {
-  const prompt = renderOutfitPrompt(opts);
+  const prompt = renderOutfitPrompt({
+    ...opts,
+    personImageCount: opts.personImages.length,
+  });
   return imageCall(settings)(prompt, [...opts.personImages, ...opts.itemImages]);
 }

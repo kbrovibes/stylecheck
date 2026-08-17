@@ -86,22 +86,35 @@ Respond with JSON only:
 }`;
 }
 
+function identityLock(personImageCount: number) {
+  const n = personImageCount || 1;
+  return `IDENTITY LOCK — the single most important instruction:
+The first ${n} image${n > 1 ? "s" : ""} show${n > 1 ? "" : "s"} the real person. Their face is immutable ground truth — treat this task as re-photographing the SAME person, not generating a similar one.
+- Copy the exact facial geometry: eye shape and spacing, eyebrows, nose, lips, jawline, cheekbones, ears.
+- Copy the exact skin tone and texture, complexion marks, hairstyle, hairline, and any facial hair precisely as shown.
+- Do NOT beautify, slim, de-age, stylize, or "improve" the face in any way. The output must be instantly recognizable as this exact individual, as if taken in the same photo session.
+- Keep eyewear exactly as in the reference photos: do not add or remove glasses.
+- If any other instruction conflicts with preserving this face, preserving the face wins.`;
+}
+
 export function renderOutfitPrompt(opts: {
   profile: Profile;
   items: WardrobeItem[];
   outfit: Pick<Outfit, "title" | "styling_notes"> | null;
+  personImageCount?: number;
 }) {
   const { profile, items, outfit } = opts;
   const itemDesc = items
     .map((i) => `${i.category}: ${i.name ?? i.subcategory ?? "item"} (${i.primary_color ?? i.colors.join(", ")})`)
     .join("; ");
-  return `Generate a photorealistic full-body fashion photo of the person shown in the reference photo(s), wearing exactly these items from their wardrobe (shown in the following images): ${itemDesc}.
+  return `${identityLock(opts.personImageCount ?? 1)}
 
-CRITICAL REQUIREMENTS:
-- The person must look 100% like the reference photos: identical face, skin tone, hair, and facial features. Do not beautify or alter their identity.
+TASK: Re-photograph this same person in a photorealistic full-body studio fashion shot, now wearing exactly these items from their wardrobe (shown in the images after the person reference${(opts.personImageCount ?? 1) > 1 ? "s" : ""}): ${itemDesc}.
+
+REQUIREMENTS:
+- The garments must match the item images faithfully — same colors, patterns, and details; do not redesign them.
 - Body proportions must match their real build: height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg. Render an honest, realistic silhouette for that height/weight.
-- Full frame, head to shoes fully visible, standing, relaxed natural pose.
-- Keep the person's current eyewear situation exactly as in the reference photos (do not add or remove glasses).
+- Full frame, head to shoes fully visible, standing, relaxed natural pose, camera at chest height, natural expression consistent with the reference photos.
 - Clean minimal studio background: soft ivory seamless backdrop, soft even lighting, subtle shadow.
 - Editorial catalogue quality, 3:4 portrait aspect.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
@@ -113,12 +126,12 @@ export const CATALOG_IMAGE_PROMPT = `Create a clean e-commerce product photo of 
 - Soft studio lighting, no props, no person, no text or watermarks.
 - Square aspect ratio.`;
 
-export const BASE_RENDER_PROMPT = (profile: Profile) => `Generate a photorealistic full-body studio photo of the person in the reference photo(s).
+export const BASE_RENDER_PROMPT = (profile: Profile, personImageCount = 1) => `${identityLock(personImageCount)}
 
-CRITICAL REQUIREMENTS:
-- Identical face, skin tone, and hair to the reference photos — 100% likeness, no beautification.
-- Realistic body proportions for height ${profile.height_cm ?? "average"} cm and weight ${profile.weight_kg ?? "average"} kg.
-- Wearing a plain fitted heather-grey t-shirt and slim dark jeans, barefoot or plain white sneakers.
-- Full frame head to feet, standing straight, arms relaxed, facing camera.
-- Keep eyewear exactly as in the reference photos.
+TASK: Re-photograph this same person as a photorealistic full-body studio photo.
+
+REQUIREMENTS:
+- Realistic body proportions for height ${profile.height_cm ?? "average"} cm and weight ${profile.weight_kg ?? "average"} kg — honest silhouette, no slimming.
+- Wearing a plain fitted heather-grey t-shirt and slim dark jeans, plain white sneakers.
+- Full frame head to feet, standing straight, arms relaxed, facing camera, natural expression consistent with the reference photos.
 - Soft ivory seamless studio backdrop, even lighting, 3:4 portrait.`;
