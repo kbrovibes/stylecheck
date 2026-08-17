@@ -66,6 +66,18 @@ export default function Nav({ email }: { email: string }) {
     setPendingHref(null);
   }, [pathname]);
 
+  // Hide the bottom tab bar while the on-screen keyboard is open — otherwise
+  // iOS pushes fixed-bottom elements up and they float around input pages.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () =>
+      setKeyboardOpen(window.innerHeight - vv.height > 150);
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
+
   function go(href: string) {
     if (matches(pathname, href) && pathname === href) return;
     setPendingHref(href); // instant feedback: tab flips immediately
@@ -155,8 +167,13 @@ export default function Nav({ email }: { email: string }) {
 
       {/* Mobile bottom tab bar */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t hairline bg-ivory/92 backdrop-blur-md md:hidden"
-        style={{ paddingBottom: "max(calc(env(safe-area-inset-bottom) - 12px), 0px)" }}
+        className={`fixed inset-x-0 bottom-0 z-40 border-t hairline bg-ivory/92 backdrop-blur-md transition-transform duration-200 md:hidden ${
+          keyboardOpen ? "translate-y-full" : "translate-y-0"
+        }`}
+        style={{
+          paddingBottom: "max(calc(env(safe-area-inset-bottom) - 12px), 0px)",
+          transform: keyboardOpen ? undefined : "translateZ(0)",
+        }}
       >
         <div className="mx-auto flex max-w-md items-stretch justify-around">
           {LINKS.filter((l) => l.href !== "/settings").map((l) => {

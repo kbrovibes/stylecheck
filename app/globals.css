@@ -25,6 +25,8 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "cv11";
+  /* stop iOS rubber-band scroll from dragging fixed elements around */
+  overscroll-behavior-y: none;
 }
 
 ::selection {
