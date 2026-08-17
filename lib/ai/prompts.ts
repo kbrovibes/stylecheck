@@ -1,3 +1,4 @@
+import { ageFromBirthYear } from "@/lib/types";
 import type {
   Outfit,
   Profile,
@@ -100,7 +101,7 @@ export function composeOutfitsPrompt(opts: {
 Build EXACTLY ${count} distinct outfits for this person from ONLY the wardrobe items listed below. Reuse pieces across outfits freely — a small wardrobe still yields many combinations (different pairings, layers, occasions). Do not return fewer than ${count} unless the wardrobe makes it truly impossible.
 CRITICAL: every value in "item_ids" must be copied character-for-character from an id in the wardrobe list. Never invent or alter ids.
 
-PERSON: height ${profile.height_cm ?? "?"} cm, weight ${profile.weight_kg ?? "?"} kg.
+PERSON: ${ageFromBirthYear(profile.birth_year) ? `${ageFromBirthYear(profile.birth_year)} years old, ` : ""}height ${profile.height_cm ?? "?"} cm, weight ${profile.weight_kg ?? "?"} kg.
 ${weather ? `CURRENT WEATHER in ${weather.place}: ${weather.condition}, ${weather.temp_f}°F (high ${weather.high_f} / low ${weather.low_f}), season: ${weather.season}.` : "Weather unknown — cover multiple seasons."}
 ${occasion ? `FOCUS OCCASION: ${occasion}.` : "Cover a spread of occasions: work, casual, friends, date."}
 
@@ -113,6 +114,7 @@ CONSTRAINTS:
 - Match formality to occasion: no shorts/flip-flops for work; no athletic wear on date night unless styled deliberately.
 - Consider color harmony, proportion for their build, season, and the current weather.
 - Prefer variety across the set — different anchors, not five variations of one look.
+${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
 
 Respond with JSON only:
 {
@@ -169,7 +171,7 @@ KEEP IDENTICAL TO THE BASE IMAGE (do not regenerate or alter): the person — th
 
 REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
 - Each garment must match its reference image faithfully: same color, pattern, fabric and details. Do not redesign or substitute.
-- Fit the garments naturally to this person's build (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg).${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
+- Fit the garments naturally to this person's build (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg).${ageFromBirthYear(profile.birth_year) ? `\n- The person is ${ageFromBirthYear(profile.birth_year)} years old: style the garments (fit, tuck, drape) the way a stylist would for that age — and never de-age or age the face.` : ""}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 - Full frame, head to shoes visible, photorealistic, 3:4 portrait.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
 }
@@ -191,7 +193,7 @@ TASK: Re-photograph this same person in a photorealistic full-body studio fashio
 
 REQUIREMENTS:
 - The garments must match the item images faithfully — same colors, patterns, and details; do not redesign them.
-- Body proportions must match their real build: height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg. Render an honest, realistic silhouette for that height/weight.${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
+- Body proportions must match their real build: height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg. Render an honest, realistic silhouette for that height/weight.${ageFromBirthYear(profile.birth_year) ? ` The person is ${ageFromBirthYear(profile.birth_year)} years old — render true to age, never younger or older.` : ""}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 - Full frame, head to shoes fully visible, standing, relaxed natural pose, camera at chest height, natural expression consistent with the reference photos.
 - Clean minimal studio background: soft ivory seamless backdrop, soft even lighting, subtle shadow.
 - Editorial catalogue quality, 3:4 portrait aspect.
@@ -267,7 +269,7 @@ export const BASE_RENDER_PROMPT = (
 TASK: Re-photograph this same person as a photorealistic full-body studio photo.
 
 REQUIREMENTS:
-- Realistic body proportions for height ${profile.height_cm ?? "average"} cm and weight ${profile.weight_kg ?? "average"} kg — honest silhouette, no slimming.${bodyCalibration(adjustments ?? profile.render_adjustments)}
+- Realistic body proportions for height ${profile.height_cm ?? "average"} cm and weight ${profile.weight_kg ?? "average"} kg — honest silhouette, no slimming.${ageFromBirthYear(profile.birth_year) ? ` They are ${ageFromBirthYear(profile.birth_year)} years old — render true to age, do not de-age.` : ""}${bodyCalibration(adjustments ?? profile.render_adjustments)}
 - Wearing a plain fitted heather-grey t-shirt and slim dark jeans, plain white sneakers.
 - Full frame head to feet, standing straight, arms relaxed, facing camera, natural expression consistent with the reference photos.
 - Soft ivory seamless studio backdrop, even lighting, 3:4 portrait.`;

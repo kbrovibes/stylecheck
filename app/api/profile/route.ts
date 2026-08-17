@@ -18,6 +18,11 @@ export async function PATCH(request: Request) {
     updated_at: new Date().toISOString(),
   };
   if ("display_name" in body) update.display_name = body.display_name || null;
+  if ("age" in body) {
+    const age = Math.round(Number(body.age));
+    update.birth_year =
+      body.age && age > 0 && age < 120 ? new Date().getFullYear() - age : null;
+  }
   if ("height_cm" in body)
     update.height_cm = body.height_cm ? Math.round(Number(body.height_cm)) : null;
   if ("weight_kg" in body)

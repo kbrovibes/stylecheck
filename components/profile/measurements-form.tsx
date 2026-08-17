@@ -21,6 +21,9 @@ function toLb(kg: number | null) {
 export default function MeasurementsForm({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState(profile.display_name ?? "");
+  const [age, setAge] = useState(
+    profile.birth_year ? String(new Date().getFullYear() - profile.birth_year) : ""
+  );
   const [heightCm, setHeightCm] = useState(profile.height_cm?.toString() ?? "");
   const [weightKg, setWeightKg] = useState(profile.weight_kg?.toString() ?? "");
   const [zip, setZip] = useState(profile.zip_code ?? "");
@@ -35,6 +38,7 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         display_name: displayName,
+        age: age ? Number(age) : null,
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
         zip_code: zip,
@@ -69,6 +73,24 @@ export default function MeasurementsForm({ profile }: { profile: Profile }) {
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="eyebrow mb-1.5 block">
+            Age{" "}
+            {age && (
+              <span className="normal-case tracking-normal text-camel">
+                styles for your life stage
+              </span>
+            )}
+          </label>
+          <input
+            className={inputCls}
+            type="number"
+            inputMode="numeric"
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            placeholder="36"
+          />
+        </div>
         <div>
           <label className="eyebrow mb-1.5 block">
             Height · cm{" "}

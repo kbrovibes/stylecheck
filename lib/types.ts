@@ -41,6 +41,7 @@ export interface Profile {
   display_name: string | null;
   height_cm: number | null;
   weight_kg: number | null;
+  birth_year: number | null;
   zip_code: string | null;
   country_code: string;
   lat: number | null;
@@ -140,6 +141,7 @@ export interface Settings {
   generate_belts: boolean;
   generate_glasses: boolean; // unsupported in v1, kept disabled
   auto_render: boolean;
+  restyle_requested_at: string | null;
   updated_at: string;
 }
 
@@ -211,3 +213,9 @@ export const OCCASION_LABELS: Record<Occasion, string> = {
   active: "Active",
   lounge: "Lounge",
 };
+
+export function ageFromBirthYear(birthYear: number | null | undefined): number | null {
+  if (!birthYear || birthYear < 1900) return null;
+  const age = new Date().getFullYear() - birthYear;
+  return age > 0 && age < 120 ? age : null;
+}
