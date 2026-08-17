@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateProfile, getOrCreateSettings } from "@/lib/account";
 import { generateBaseRender } from "@/lib/ai";
-import { downloadAsImageInput, signedUrl, uploadBase64 } from "@/lib/storage";
+import { downloadAsImageInput, imgUrl, uploadBase64 } from "@/lib/storage";
 import type { RenderAdjustments, UserPhoto } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
         .eq("id", user.id);
     }
 
-    const url = await signedUrl(supabase, path);
+    const url = imgUrl(path);
     return NextResponse.json({ path, url, preview });
   } catch (e) {
     return NextResponse.json(

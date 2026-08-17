@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { signedUrls } from "@/lib/storage";
+import { imgUrls } from "@/lib/storage";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import GenerateButton from "@/components/fits/generate-button";
 import TileRenderButton from "@/components/fits/tile-render-button";
@@ -52,7 +52,7 @@ export default async function FitsPage({
       }
     }
   }
-  const urls = await signedUrls(supabase, [...paths]);
+  const urls = imgUrls([...paths]);
 
   const tabs: { value: string; label: string }[] = [
     { value: "", label: "All" },

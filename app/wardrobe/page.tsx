@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { signedUrls } from "@/lib/storage";
+import { imgUrls } from "@/lib/storage";
 import { Badge, EmptyState, PageTitle } from "@/components/ui";
 import { CATEGORY_LABELS, type Category, type WardrobeItem } from "@/lib/types";
 
@@ -35,7 +35,7 @@ export default async function WardrobePage({
     : allItems;
 
   const paths = items.map((i) => i.catalog_image_path ?? i.original_image_path);
-  const urls = await signedUrls(supabase, paths);
+  const urls = imgUrls(paths);
 
   return (
     <div className="fade-up">

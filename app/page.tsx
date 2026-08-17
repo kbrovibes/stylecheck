@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateProfile } from "@/lib/account";
 import { getWeather } from "@/lib/weather";
-import { signedUrl, signedUrls } from "@/lib/storage";
+import { imgUrl, imgUrls } from "@/lib/storage";
 import { computeWardrobeHash } from "@/lib/scene";
 import { computeCoverage } from "@/lib/coverage";
 import { Card, EmptyState, Eyebrow, Badge } from "@/components/ui";
@@ -57,12 +57,10 @@ export default async function TodayPage() {
   const heroThumbPaths = items
     .slice(0, 40)
     .map((i) => i.catalog_image_path ?? i.original_image_path);
-  const [sceneUrlResolved, heroThumbUrls] = await Promise.all([
-    profile.wardrobe_scene_path
-      ? signedUrl(supabase, profile.wardrobe_scene_path, 604800).catch(() => null)
-      : Promise.resolve(null),
-    signedUrls(supabase, heroThumbPaths, 3600),
-  ]);
+  const sceneUrlResolved = profile.wardrobe_scene_path
+    ? imgUrl(profile.wardrobe_scene_path)
+    : null;
+  const heroThumbUrls = imgUrls(heroThumbPaths);
   const heroGroups: HeroGroup[] = HERO_GROUPS.map((g) => ({
     key: g.key,
     label: g.label,
@@ -96,7 +94,7 @@ export default async function TodayPage() {
 
   const outfits = (fits ?? []) as Outfit[];
   const renderPaths = outfits.map((o) => o.render_path).filter(Boolean) as string[];
-  const urls = await signedUrls(supabase, renderPaths);
+  const urls = imgUrls(renderPaths);
 
   const firstName =
     profile.display_name?.split(" ")[0] ?? user.email?.split("@")[0] ?? "there";

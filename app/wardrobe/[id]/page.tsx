@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signedUrls } from "@/lib/storage";
+import { imgUrls } from "@/lib/storage";
 import { Badge, Eyebrow } from "@/components/ui";
 import { CATEGORY_LABELS, type WardrobeItem } from "@/lib/types";
 import ImageToggle from "@/components/wardrobe/image-toggle";
@@ -30,9 +30,7 @@ export default async function ItemPage({
   if (!data) notFound();
   const item = data as WardrobeItem;
 
-  const urls = await signedUrls(
-    supabase,
-    [item.catalog_image_path, item.original_image_path].filter(Boolean) as string[]
+  const urls = imgUrls([item.catalog_image_path, item.original_image_path].filter(Boolean) as string[]
   );
   const catalogUrl = item.catalog_image_path ? urls[item.catalog_image_path] ?? null : null;
   const originalUrl = urls[item.original_image_path] ?? null;

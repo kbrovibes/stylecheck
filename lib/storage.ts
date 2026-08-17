@@ -59,6 +59,18 @@ export async function signedUrls(
   return map;
 }
 
+/** Stable, cacheable app URL for a private storage image (served by /api/img). */
+export function imgUrl(path: string) {
+  return "/api/img/" + path.split("/").map(encodeURIComponent).join("/");
+}
+
+/** Build the same {path: url} map pages used with signedUrls — now stable + cacheable. */
+export function imgUrls(paths: string[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const p of paths) if (p) map[p] = imgUrl(p);
+  return map;
+}
+
 export function extFromMime(mime: string) {
   if (mime.includes("png")) return "png";
   if (mime.includes("webp")) return "webp";

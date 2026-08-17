@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signedUrls } from "@/lib/storage";
+import { imgUrls } from "@/lib/storage";
 import { Badge, Card, Eyebrow } from "@/components/ui";
 import RenderButton from "@/components/fits/render-button";
 import VariationLinks, {
@@ -61,7 +61,7 @@ export default async function FitDetailPage({
   if (outfit.render_path) paths.add(outfit.render_path);
   items.forEach((i) => paths.add(i.catalog_image_path ?? i.original_image_path));
   renders.forEach((r) => paths.add(r.storage_path));
-  const urls = await signedUrls(supabase, [...paths]);
+  const urls = imgUrls([...paths]);
 
   const variations = ((outfit.variations ?? []) as OutfitVariation[]).map(
     (v, index): VariationDisplay => ({

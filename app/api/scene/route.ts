@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateProfile, getOrCreateSettings } from "@/lib/account";
 import { computeWardrobeHash, generateWardrobeScene, loadSceneItems } from "@/lib/scene";
-import { signedUrl } from "@/lib/storage";
+import { imgUrl } from "@/lib/storage";
 
 export const maxDuration = 300;
 
@@ -57,7 +57,7 @@ export async function GET() {
     stale,
     generated_at: profile.wardrobe_scene_generated_at,
     url: profile.wardrobe_scene_path
-      ? await signedUrl(supabase, profile.wardrobe_scene_path, 604800).catch(() => null)
+      ? imgUrl(profile.wardrobe_scene_path)
       : null,
   });
 }

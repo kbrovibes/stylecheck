@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateProfile } from "@/lib/account";
 import { getWeather } from "@/lib/weather";
-import { signedUrl, signedUrls } from "@/lib/storage";
+import { imgUrl, imgUrls } from "@/lib/storage";
 import { computeCoverage } from "@/lib/coverage";
 import { Badge, Card, PageTitle } from "@/components/ui";
 import MeasurementsForm from "@/components/profile/measurements-form";
@@ -55,16 +55,12 @@ export default async function ProfilePage() {
     }
   }
 
-  const photoUrls = await signedUrls(
-    supabase,
-    photos.map((p) => p.storage_path)
+  const photoUrls = imgUrls(photos.map((p) => p.storage_path)
   );
-  const renderUrls = await signedUrls(
-    supabase,
-    renders.map((r) => r.storage_path)
+  const renderUrls = imgUrls(renders.map((r) => r.storage_path)
   );
   const baseRenderUrl = profile.base_render_path
-    ? await signedUrl(supabase, profile.base_render_path).catch(() => null)
+    ? imgUrl(profile.base_render_path)
     : null;
 
   return (
