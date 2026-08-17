@@ -148,6 +148,32 @@ ${ref}. Their face is immutable ground truth — treat this task as re-photograp
 - If any other instruction conflicts with preserving this face, preserving the face wins.`;
 }
 
+/**
+ * Edit-framing variant: used when a base render exists. Editing ONE image
+ * ("change only the clothes") preserves identity far better than asking the
+ * model to generate a new photo of a referenced person.
+ */
+export function outfitEditPrompt(opts: {
+  profile: Profile;
+  items: WardrobeItem[];
+  outfit: Pick<Outfit, "title" | "styling_notes"> | null;
+  adjustments?: RenderAdjustments | null;
+}) {
+  const { profile, items, outfit } = opts;
+  const itemDesc = items
+    .map((i) => `${i.category}: ${i.name ?? i.subcategory ?? "item"} (${i.primary_color ?? i.colors.join(", ")})`)
+    .join("; ");
+  return `TASK: Wardrobe swap. Edit the BASE IMAGE — change ONLY the clothing.
+
+KEEP IDENTICAL TO THE BASE IMAGE (do not regenerate or alter): the person — their exact face, expression, hair, skin tone, facial hair, glasses/no-glasses, body proportions — plus the pose, camera framing, lighting and the ivory studio background. This must remain the same photograph of the same person, with new clothes on.
+
+REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
+- Each garment must match its reference image faithfully: same color, pattern, fabric and details. Do not redesign or substitute.
+- Fit the garments naturally to this person's build (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg).${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
+- Full frame, head to shoes visible, photorealistic, 3:4 portrait.
+${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
+}
+
 export function renderOutfitPrompt(opts: {
   profile: Profile;
   items: WardrobeItem[];

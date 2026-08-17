@@ -69,6 +69,7 @@ export async function renderOutfitRecord(
       itemImages,
       items,
       outfit: { title: outfit.title, styling_notes: outfit.styling_notes },
+      editBase: !!profile.base_render_path,
     });
 
     const path = await uploadBase64(

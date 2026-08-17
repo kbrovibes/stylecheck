@@ -22,6 +22,7 @@ import {
   catalogImagePrompt,
   CLASSIFY_PROMPT,
   composeOutfitsPrompt,
+  outfitEditPrompt,
   reclassifyItemPrompt,
   renderOutfitPrompt,
   wardrobeScenePrompt,
@@ -128,37 +129,54 @@ export async function renderOutfitImage(
     itemImages: ImageInput[];
     items: WardrobeItem[];
     outfit: Pick<Outfit, "title" | "styling_notes"> | null;
+    editBase?: boolean; // true when personImages[0] is the saved base render
   }
 ) {
-  const prompt = renderOutfitPrompt({
-    ...opts,
-    personImageCount: opts.personImages.length,
-  });
   if (settings.provider === "openai") {
     return openaiImage({
       model: settings.image_model,
-      prompt,
+      prompt: renderOutfitPrompt({
+        ...opts,
+        personImageCount: opts.personImages.length,
+      }),
       images: [...opts.personImages, ...opts.itemImages],
     });
   }
-  // Interleave labeled references so the model binds them correctly: the
-  // person reference is authoritative for identity; each item is named.
-  const parts: MixedPart[] = [
-    {
-      text: `THE PERSON — authoritative identity reference. The generated photo MUST show exactly this person (same face, hair, skin tone, build). This is not a model or a stand-in:`,
-    },
-    ...opts.personImages.map((image) => ({ image })),
-    ...opts.items.flatMap((item, i) => {
-      const img = opts.itemImages[i];
-      if (!img) return [];
-      return [
+
+  const itemParts: MixedPart[] = opts.items.flatMap((item, i) => {
+    const img = opts.itemImages[i];
+    if (!img) return [];
+    return [
+      {
+        text: `ITEM ${i + 1} — ${item.name ?? item.subcategory ?? item.category} (${item.category}${item.primary_color ? `, ${item.primary_color}` : ""}):`,
+      } as MixedPart,
+      { image: img } as MixedPart,
+    ];
+  });
+
+  // With a base render: edit that ONE image ("change only the clothes") —
+  // dramatically better identity preservation than generate-from-references.
+  const parts: MixedPart[] = opts.editBase
+    ? [
         {
-          text: `ITEM ${i + 1} — ${item.name ?? item.subcategory ?? item.category} (${item.category}${item.primary_color ? `, ${item.primary_color}` : ""}). Dress the person in exactly this piece:`,
-        } as MixedPart,
-        { image: img } as MixedPart,
+          text: "BASE IMAGE — the photograph to edit. The person in it must remain pixel-faithful except for their clothing:",
+        },
+        { image: opts.personImages[0] },
+        ...itemParts,
+        { text: outfitEditPrompt(opts) },
+      ]
+    : [
+        {
+          text: `THE PERSON — authoritative identity reference. The generated photo MUST show exactly this person (same face, hair, skin tone, build). This is not a model or a stand-in:`,
+        },
+        ...opts.personImages.map((image) => ({ image })),
+        ...itemParts,
+        {
+          text: renderOutfitPrompt({
+            ...opts,
+            personImageCount: opts.personImages.length,
+          }),
+        },
       ];
-    }),
-    { text: prompt },
-  ];
   return geminiImageParts({ model: settings.image_model, parts });
 }
