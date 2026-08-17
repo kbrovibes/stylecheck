@@ -3,7 +3,8 @@ import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateProfile, getOrCreateSettings } from "@/lib/account";
 import { composeOutfits } from "@/lib/ai";
 import { getWeather } from "@/lib/weather";
-import type { WardrobeItem, WeatherInfo } from "@/lib/types";
+import { blockingGaps, computeCoverage } from "@/lib/coverage";
+import type { UserPhoto, WardrobeItem, WeatherInfo } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -33,14 +34,22 @@ export async function POST(request: Request) {
         .eq("enabled", true),
     ]);
     const items = (itemsData ?? []) as WardrobeItem[];
-    if (items.length < 3) {
-      return NextResponse.json(
-        {
-          error:
-            "Your wardrobe is a little bare — upload at least a few tops, bottoms and shoes first.",
-        },
-        { status: 400 }
-      );
+    {
+      const { data: photosData } = await supabase
+        .from("sc_user_photos")
+        .select("id, kind, deleted")
+        .eq("user_id", user.id)
+        .eq("deleted", false);
+      const cov = computeCoverage(items, (photosData ?? []) as UserPhoto[]);
+      const gaps = blockingGaps(cov).filter((g) => !g.includes("photo"));
+      if (gaps.length) {
+        return NextResponse.json(
+          {
+            error: `Not quite enough to style yet — add ${gaps.join(", ")}. The Today page shows exactly what's missing.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     let weather: WeatherInfo | null = null;

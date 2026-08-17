@@ -4,9 +4,10 @@ import { getOrCreateProfile } from "@/lib/account";
 import { getWeather } from "@/lib/weather";
 import { signedUrl, signedUrls } from "@/lib/storage";
 import { computeWardrobeHash } from "@/lib/scene";
+import { computeCoverage } from "@/lib/coverage";
 import { Card, EmptyState, Eyebrow, Badge } from "@/components/ui";
 import WardrobeHero, { type HeroGroup } from "@/components/home/wardrobe-hero";
-import type { Category, Outfit, WardrobeItem, WeatherInfo } from "@/lib/types";
+import type { Category, Outfit, UserPhoto, WardrobeItem, WeatherInfo } from "@/lib/types";
 
 const HERO_GROUPS: { key: string; label: string; cats: Category[]; href: string }[] = [
   { key: "hanging", label: "Tops & layers", cats: ["top", "outerwear", "full_body"], href: "/wardrobe?category=top" },
@@ -26,7 +27,7 @@ export default async function TodayPage() {
 
   const profile = await getOrCreateProfile(supabase, user);
 
-  const [{ data: itemsData }, { count: photoCount }, { data: fits }] =
+  const [{ data: itemsData }, { data: photosData }, { data: fits }] =
     await Promise.all([
       supabase
         .from("sc_wardrobe_items")
@@ -36,7 +37,7 @@ export default async function TodayPage() {
         .order("created_at", { ascending: true }),
       supabase
         .from("sc_user_photos")
-        .select("*", { count: "exact", head: true })
+        .select("id, kind, deleted")
         .eq("deleted", false),
       supabase
         .from("sc_outfits")
@@ -48,6 +49,9 @@ export default async function TodayPage() {
 
   const items = (itemsData ?? []) as WardrobeItem[];
   const itemCount = items.length;
+  const photosLite = (photosData ?? []) as UserPhoto[];
+  const photoCount = photosLite.length;
+  const coverage = computeCoverage(items, photosLite);
 
   // Wardrobe hero: cached scene image + grouped items for the hotspot sheets.
   const heroThumbPaths = items
@@ -217,6 +221,59 @@ export default async function TodayPage() {
               </Link>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Coverage: what to upload for better fits */}
+      {(itemCount > 0 || photoCount > 0) && !coverage.complete && (
+        <div className="mt-6 rounded-2xl border hairline bg-paper p-6">
+          <div className="mb-1 flex items-baseline justify-between">
+            <p className="eyebrow">Get better fits</p>
+            <p className="text-[11px] text-ink-faint">
+              {coverage.ready
+                ? "Generation works — more variety = better looks"
+                : "A few things are still needed before fits can render well"}
+            </p>
+          </div>
+          <div className="mt-4 grid gap-x-10 gap-y-3 sm:grid-cols-2">
+            {[...coverage.photoSlots, ...coverage.itemSlots].map((s) => {
+              const pct = Math.min(100, (s.have / s.want) * 100);
+              const met = s.have >= s.want;
+              return (
+                <Link key={s.key} href={s.href} className="group" title={s.hint}>
+                  <div className="flex items-baseline justify-between">
+                    <span
+                      className={`text-[13px] ${met ? "text-ink-faint" : "text-ink-soft group-hover:text-ink"}`}
+                    >
+                      {s.label}
+                      {s.optional && (
+                        <span className="ml-1.5 text-[10px] uppercase tracking-widest text-ink-faint/70">
+                          optional
+                        </span>
+                      )}
+                    </span>
+                    <span className={`text-[12px] font-medium ${met ? "text-moss" : "text-ink"}`}>
+                      {met ? "✓" : `${s.have} / ${s.want}`}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-hairline">
+                    <div
+                      className={`h-full rounded-full transition-all ${met ? "bg-moss/70" : "bg-camel"}`}
+                      style={{ width: `${Math.max(4, pct)}%` }}
+                    />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          {coverage.suggestions.length > 0 && (
+            <div className="mt-5 border-t hairline pt-4">
+              <p className="text-[13px] leading-relaxed text-ink-soft">
+                <span className="serif-accent text-camel-deep">Next up: </span>
+                {coverage.suggestions.slice(0, 3).join(" · ")}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

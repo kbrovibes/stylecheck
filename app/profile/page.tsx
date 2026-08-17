@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrCreateProfile } from "@/lib/account";
 import { getWeather } from "@/lib/weather";
 import { signedUrl, signedUrls } from "@/lib/storage";
+import { computeCoverage } from "@/lib/coverage";
 import { Badge, Card, PageTitle } from "@/components/ui";
 import MeasurementsForm from "@/components/profile/measurements-form";
 import PhotoUploader from "@/components/profile/photo-uploader";
@@ -107,7 +108,7 @@ export default async function ProfilePage() {
       </div>
 
       <section className="mt-12">
-        <div className="mb-5 flex items-baseline justify-between">
+        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-xl font-semibold tracking-tight">
             Your <span className="serif-accent text-camel">photos</span>
           </h2>
@@ -116,6 +117,20 @@ export default async function ProfilePage() {
             primary
           </p>
         </div>
+        {(() => {
+          const gaps = computeCoverage([], photos).photoSlots.filter(
+            (s) => s.have < s.want
+          );
+          if (!gaps.length) return null;
+          return (
+            <p className="mb-4 rounded-xl border hairline bg-paper px-4 py-2.5 text-[13px] text-ink-soft">
+              <span className="serif-accent text-camel-deep">For the best likeness: </span>
+              {gaps
+                .map((s) => `${s.want - s.have} more ${s.label.toLowerCase()} — ${s.hint}`)
+                .join(" · ")}
+            </p>
+          );
+        })()}
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6">
           <PhotoUploader userId={user.id} />
           <PhotoGrid photos={photos} urls={photoUrls} />

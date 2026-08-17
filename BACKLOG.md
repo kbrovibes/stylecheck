@@ -57,6 +57,13 @@
 - Premium full-bleed app icon: gold serif monogram with double hairline frame on
   deep ink — no baked corners, so home-screen masking looks right.
 
+### v1.4 — 2026-08-16
+
+- Coverage guidance: concrete upload targets instead of "add more photos" — per-slot
+  progress (tops 4, bottoms 3, shoes 2, outerwear/accessories optional; 1 full-body
+  + 2 face photos) on the Today page, a likeness hint on the profile photos section,
+  and fit generation errors that name the exact gaps.
+
 ## Backlog
 
 | # | Item | Why |
