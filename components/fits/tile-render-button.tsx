@@ -62,8 +62,6 @@ export default function TileRenderButton({
         <span className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-ivory/30 border-t-ivory" />
       ) : error ? (
         "!"
-      ) : goofy ? (
-        "🤪"
       ) : (
         "↻"
       )}

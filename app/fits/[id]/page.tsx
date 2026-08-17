@@ -20,6 +20,12 @@ import {
   type WardrobeItem,
 } from "@/lib/types";
 
+function goofyFirst(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i)) % 997;
+  return h % 2 === 0;
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function FitDetailPage({
@@ -109,10 +115,17 @@ export default async function FitDetailPage({
             <div className="bg-ivory">
               {goofyMode && outfit.goofy_render_path && outfit.render_path ? (
                 <RenderCarousel
-                  slides={[
-                    { url: urls[outfit.goofy_render_path], label: "\u{1F92A} goofy" },
-                    { url: urls[outfit.render_path], label: "classic" },
-                  ]}
+                  slides={
+                    goofyFirst(outfit.id)
+                      ? [
+                          { url: urls[outfit.goofy_render_path], label: "goofy" },
+                          { url: urls[outfit.render_path], label: "classic" },
+                        ]
+                      : [
+                          { url: urls[outfit.render_path], label: "classic" },
+                          { url: urls[outfit.goofy_render_path], label: "goofy" },
+                        ]
+                  }
                   zoomable
                 />
               ) : displayPath && urls[displayPath] ? (
@@ -122,7 +135,7 @@ export default async function FitDetailPage({
                       url: urls[displayPath],
                       label:
                         goofyMode && displayPath === outfit.goofy_render_path
-                          ? "\u{1F92A} goofy"
+                          ? "goofy"
                           : (outfit.title ?? "Fit render"),
                     },
                   ]}

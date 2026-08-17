@@ -75,9 +75,9 @@ export default function RenderButton({
         {loading ? (
           <span className="serif-accent">{LOADING_COPY[copyIdx]}</span>
         ) : hasRender ? (
-          goofy ? "Re-render goofy take 🤪" : "Re-render"
+          goofy ? "Re-render goofy take" : "Re-render"
         ) : (
-          goofy ? "Generate goofy take 🤪" : "Render on me"
+          goofy ? "Generate goofy take" : "Render on me"
         )}
       </Button>
       {loading && (

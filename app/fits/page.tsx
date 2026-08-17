@@ -13,6 +13,12 @@ import {
   type WardrobeItem,
 } from "@/lib/types";
 
+function goofyFirst(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i)) % 997;
+  return h % 2 === 0;
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function FitsPage({
@@ -122,15 +128,22 @@ export default async function FitsPage({
                   />
                   {goofyMode && !o.goofy_render_path && o.render_path && (
                     <span className="absolute bottom-2 left-2 z-10 rounded-full bg-ink/60 px-2.5 py-1 text-[10px] text-ivory backdrop-blur">
-                      🤪 no goofy take yet
+                      no goofy take yet
                     </span>
                   )}
                   {goofyMode && o.goofy_render_path && o.render_path ? (
                     <RenderCarousel
-                      slides={[
-                        { url: urls[o.goofy_render_path], label: "\u{1F92A} goofy" },
-                        { url: urls[o.render_path], label: "classic" },
-                      ]}
+                      slides={
+                        goofyFirst(o.id)
+                          ? [
+                              { url: urls[o.goofy_render_path], label: "goofy" },
+                              { url: urls[o.render_path], label: "classic" },
+                            ]
+                          : [
+                              { url: urls[o.render_path], label: "classic" },
+                              { url: urls[o.goofy_render_path], label: "goofy" },
+                            ]
+                      }
                       imgClass="object-cover object-top"
                     />
                   ) : (goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : o.render_path && urls[o.render_path]) ? (
