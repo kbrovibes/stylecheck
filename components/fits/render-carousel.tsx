@@ -61,21 +61,16 @@ export default function RenderCarousel({
       </div>
 
       {slides.length > 1 && (
-        <>
-          <span className="pointer-events-none absolute left-2 top-2 z-10 rounded-full bg-ink/55 px-2.5 py-1 text-[10px] font-medium tracking-wide text-ivory backdrop-blur">
-            {slides[idx]?.label}
-          </span>
-          <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex justify-center gap-1.5">
-            {slides.map((s, i) => (
-              <span
-                key={s.url}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === idx ? "w-4 bg-ivory" : "w-1.5 bg-ivory/45"
-                }`}
-              />
-            ))}
-          </div>
-        </>
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex justify-center gap-1.5">
+          {slides.map((s, i) => (
+            <span
+              key={s.url}
+              className={`h-1.5 rounded-full transition-all ${
+                i === idx ? "w-4 bg-ivory" : "w-1.5 bg-ivory/45"
+              }`}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
