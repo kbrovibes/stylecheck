@@ -118,7 +118,7 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: true });
   const pending = ((pendingData ?? []) as Outfit[]).filter((o) => o.person_id);
 
-  for (const outfit of pending.slice(0, 2)) {
+  for (const outfit of pending.slice(0, 1)) {
     try {
       const { data: p } = await admin
         .from("sc_people")
@@ -144,8 +144,8 @@ export async function GET(request: Request) {
     }
   }
 
-  const remaining = Math.max(0, pending.length - 2);
-  if (remaining > 0 && depth < 15) {
+  const remaining = Math.max(0, pending.length - 1);
+  if (remaining > 0 && depth < 60) {
     const next = new URL(request.url);
     next.searchParams.set("depth", String(depth + 1));
     after(async () => {

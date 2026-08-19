@@ -101,7 +101,7 @@ export async function GET(request: Request) {
 
   const remaining = Math.max(0, queue.length - limit);
   const depth = Number(url.searchParams.get("depth")) || 0;
-  if (remaining > 0 && depth < 25) {
+  if (remaining > 0 && depth < 60) {
     const next = new URL(request.url);
     next.searchParams.set("depth", String(depth + 1));
     after(async () => {
