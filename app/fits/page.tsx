@@ -89,6 +89,7 @@ export default async function FitsPage({
     goofyUrl: o.goofy_render_path ? (urls[o.goofy_render_path] ?? null) : null,
     goofyLead: goofyFirst(o.id),
     degraded: o.item_ids.some((iid) => !itemById.has(iid)),
+    reaction: o.reaction,
     thumbs: o.item_ids.slice(0, 4).map((iid) => {
       const item = itemById.get(iid);
       const path = item ? (item.catalog_image_path ?? item.original_image_path) : null;

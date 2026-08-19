@@ -6,6 +6,7 @@ import { imgUrls } from "@/lib/storage";
 import { Badge, Card, Eyebrow } from "@/components/ui";
 import RenderButton from "@/components/fits/render-button";
 import FitActions from "@/components/fits/fit-actions";
+import ReactionButtons from "@/components/fits/reaction-buttons";
 import RenderCarousel from "@/components/fits/render-carousel";
 import ZoomImage from "@/components/lightbox";
 import VariationLinks, {
@@ -182,9 +183,16 @@ export default async function FitDetailPage({
           <Eyebrow>
             {outfit.parent_outfit_id ? "Variation" : "The look"}
           </Eyebrow>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            <span className="serif-accent text-camel">{outfit.title}</span>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              <span className="serif-accent text-camel">{outfit.title}</span>
           </h1>
+            <ReactionButtons
+              outfitId={outfit.id}
+              initial={outfit.reaction}
+              readOnly={!canManage}
+            />
+          </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {outfit.occasion && (
               <Badge tone="ink">

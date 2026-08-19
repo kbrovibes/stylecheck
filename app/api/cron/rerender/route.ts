@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { renderOutfitRecord } from "@/lib/render";
 import type { Outfit, Person, Settings } from "@/lib/types";
@@ -98,9 +99,21 @@ export async function GET(request: Request) {
     }
   }
 
+  const remaining = Math.max(0, queue.length - limit);
+  const depth = Number(url.searchParams.get("depth")) || 0;
+  if (remaining > 0 && depth < 25) {
+    const next = new URL(request.url);
+    next.searchParams.set("depth", String(depth + 1));
+    after(async () => {
+      await fetch(next.toString(), {
+        headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+      }).catch(() => {});
+    });
+  }
   return NextResponse.json({
     processed: Object.keys(results).length,
-    remaining: Math.max(0, queue.length - limit),
+    remaining,
     results,
+    depth,
   });
 }

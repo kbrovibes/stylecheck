@@ -82,6 +82,7 @@ export function composeOutfitsPrompt(opts: {
   settings: Settings;
   count: number;
   occasion?: string;
+  dislikes?: string[];
 }) {
   const { profile, items, weather, settings, count, occasion } = opts;
   const itemLines = items
@@ -117,7 +118,7 @@ CONSTRAINTS:
 - Prefer variety across the set — different anchors, not five variations of one look.
 ${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
 
-SCORING — be a genuinely critical stylist, not a cheerleader:
+${opts.dislikes?.length ? `DISLIKED BY THE USER — they thumbed these combinations down; do not propose close variants of them:\n${opts.dislikes.map((d) => `- ${d}`).join("\n")}\n\n` : ""}SCORING — be a genuinely critical stylist, not a cheerleader:
 - Calibrate: 5 = wearable but forgettable · 6 = good · 7 = strong · 8 = excellent, lookbook-worthy · 9 = near-perfect (rare: at most ONE per batch) · 10 = never given.
 - Use the full 4-9 range with decimals (e.g. 5.8, 7.2). Spread scores out — the batch average should land around 6.5, and no two outfits should share a score unless they are truly equal.
 - Penalize: safe/boring combinations, formality mismatches, muddy color stories, season conflicts, repetitive anchors across the batch.

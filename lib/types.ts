@@ -166,6 +166,7 @@ export interface Outfit {
   render_status: "none" | "pending" | "done" | "failed";
   render_model: string | null;
   score: number | null;
+  reaction: 1 | -1 | null;
   deleted: boolean;
   created_at: string;
 }

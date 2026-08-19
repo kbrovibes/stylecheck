@@ -73,12 +73,23 @@ export async function POST(request: Request) {
       }
     }
 
+    const { data: dislikedData } = await supabase
+      .from("sc_outfits")
+      .select("title, item_ids")
+      .eq("person_id", person.id)
+      .eq("reaction", -1)
+      .limit(15);
+    const nameById = new Map(items.map((i) => [i.id, i.name ?? i.subcategory ?? i.category]));
+    const dislikes = (dislikedData ?? []).map(
+      (d) => `${d.title}: ${(d.item_ids as string[]).map((iid) => nameById.get(iid)).filter(Boolean).join(" + ")}`
+    );
     const plans = await composeOutfits(settings, {
       profile: person,
       items,
       weather,
       count,
       occasion,
+      dislikes,
     });
     if (!plans.length) {
       return NextResponse.json(

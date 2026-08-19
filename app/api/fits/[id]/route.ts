@@ -37,3 +37,40 @@ export async function DELETE(
   await supabase.from("sc_outfits").update({ deleted: true }).eq("id", id);
   return NextResponse.json({ ok: true });
 }
+
+/** Set or clear a thumbs reaction on a fit. */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  let ctx;
+  try {
+    ctx = await requireUser();
+  } catch {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const { supabase, user } = ctx;
+  const { id } = await params;
+  const body = await request.json().catch(() => ({}));
+  const reaction =
+    body.reaction === 1 || body.reaction === -1 ? body.reaction : null;
+
+  const { data } = await supabase
+    .from("sc_outfits")
+    .select("id, person_id, user_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const outfit = data as Pick<Outfit, "id" | "person_id" | "user_id">;
+  const { data: ok } = outfit.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: outfit.person_id })
+    : { data: outfit.user_id === user.id };
+  if (!ok) {
+    return NextResponse.json(
+      { error: "You have view-only access to this profile." },
+      { status: 403 }
+    );
+  }
+  await supabase.from("sc_outfits").update({ reaction }).eq("id", id);
+  return NextResponse.json({ ok: true, reaction });
+}

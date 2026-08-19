@@ -62,6 +62,7 @@ export async function composeOutfits(
     weather: WeatherInfo | null;
     count: number;
     occasion?: string;
+    dislikes?: string[];
   }
 ): Promise<OutfitPlan[]> {
   const prompt = composeOutfitsPrompt({ ...opts, settings });

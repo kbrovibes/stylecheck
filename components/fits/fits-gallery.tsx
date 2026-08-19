@@ -17,6 +17,7 @@ export interface FitCard {
   goofyUrl: string | null;
   goofyLead: boolean; // stable random: which take leads in goofy mode
   degraded: boolean; // references pieces no longer in the wardrobe
+  reaction: 1 | -1 | null;
   thumbs: { id: string; url: string | null }[];
 }
 
@@ -208,11 +209,15 @@ export default function FitsGallery({
                     ))}
                   </div>
                 </div>
-                {c.score != null && (
-                  <span className="serif-accent shrink-0 text-lg text-camel">
-                    {Number(c.score).toFixed(1)}
-                  </span>
-                )}
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {c.reaction === 1 && <span className="text-[13px] text-moss">▲</span>}
+                  {c.reaction === -1 && <span className="text-[13px] text-camel-deep">▼</span>}
+                  {c.score != null && (
+                    <span className="serif-accent text-lg text-camel">
+                      {Number(c.score).toFixed(1)}
+                    </span>
+                  )}
+                </span>
               </div>
             </Link>
           ))}
@@ -275,6 +280,8 @@ export default function FitsGallery({
                   {[c.occasionLabel, ...c.seasons.slice(0, 2)].filter(Boolean).join(" · ")}
                 </span>
               </span>
+              {c.reaction === 1 && <span className="shrink-0 text-[12px] text-moss">▲</span>}
+              {c.reaction === -1 && <span className="shrink-0 text-[12px] text-camel-deep">▼</span>}
               {c.score != null && (
                 <span className="serif-accent shrink-0 text-[15px] text-camel">
                   {Number(c.score).toFixed(1)}
