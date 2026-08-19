@@ -110,7 +110,8 @@ ${itemLines}
 
 CONSTRAINTS:
 - ${optional.join("\n- ")}
-- Each outfit needs at minimum a top + bottom (or one full_body piece) and footwear if available.
+- Each outfit needs at minimum a top + bottom (or one full_body piece), and MUST include footwear whenever any footwear exists in the wardrobe.
+- Finish the looks: belts, watches, bags, headwear and other accessories are there to be USED — at least half the outfits should feature one when available, chosen deliberately (leather tones matched to shoes, metals consistent). Never dump every accessory on one look.
 - Match formality to occasion: no shorts/flip-flops for work; no athletic wear on date night unless styled deliberately.
 - Consider color harmony, proportion for their build, season, and the current weather.
 - Prefer variety across the set — different anchors, not five variations of one look.
