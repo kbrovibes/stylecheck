@@ -136,13 +136,13 @@ Respond with JSON only:
 }`;
 }
 
-function identityLock(personImageCount: number, labeled = false) {
+function identityLock(personImageCount: number, labeled = false, identityNotes?: string | null) {
   const n = personImageCount || 1;
   const ref = labeled
     ? `The image${n > 1 ? "s" : ""} labeled "THE PERSON" show${n > 1 ? "" : "s"} the real person`
     : `The first ${n} image${n > 1 ? "s" : ""} show${n > 1 ? "" : "s"} the real person`;
   return `IDENTITY LOCK — the single most important instruction:
-${ref}. Their face is immutable ground truth — treat this task as re-photographing the SAME person, not generating a similar one.
+${ref}. Their face is immutable ground truth${identityNotes ? `\nVERIFIED IDENTITY DESCRIPTION (cross-check the output against every detail): ${identityNotes}` : ""} — treat this task as re-photographing the SAME person, not generating a similar one.
 - Copy the exact facial geometry: eye shape and spacing, eyebrows, nose, lips, jawline, cheekbones, ears.
 - Copy the exact skin tone and texture, complexion marks, hairstyle, hairline, and any facial hair precisely as shown.
 - Do NOT beautify, slim, de-age, stylize, or "improve" the face in any way. The output must be instantly recognizable as this exact individual, as if taken in the same photo session.
@@ -182,6 +182,8 @@ export function outfitEditPrompt(opts: {
   outfit: Pick<Outfit, "title" | "styling_notes"> | null;
   adjustments?: RenderAdjustments | null;
   goofy?: boolean;
+  identityNotes?: string | null;
+  identityPhotoCount?: number;
 }) {
   const { profile, items, outfit } = opts;
   const itemDesc = items
@@ -189,7 +191,8 @@ export function outfitEditPrompt(opts: {
     .join("; ");
   return `TASK: Wardrobe swap${opts.goofy ? " + comedy pose" : ""}. Edit the BASE IMAGE — change ONLY the clothing${opts.goofy ? " and the pose" : ""}.
 
-KEEP IDENTICAL TO THE BASE IMAGE (do not regenerate or alter): the person — their exact face, ${opts.goofy ? "" : "expression, "}hair, skin tone, facial hair, glasses/no-glasses, body proportions — plus ${opts.goofy ? "the lighting and the ivory studio background" : "the pose, camera framing, lighting and the ivory studio background"}. This must remain the same person${opts.goofy ? "" : ", with new clothes on"}.
+${opts.identityPhotoCount ? `IDENTITY PROOF — the ${opts.identityPhotoCount} image(s) labeled "IDENTITY PROOF" are REAL photographs of this person. The output face must match these photos even more than the BASE IMAGE: if the BASE IMAGE has drifted from the photos in any facial detail, correct toward the photos.\n` : ""}${opts.identityNotes ? `VERIFIED IDENTITY DESCRIPTION (cross-check every detail): ${opts.identityNotes}\n` : ""}
+KEEP IDENTICAL TO THE BASE IMAGE (do not regenerate or alter): the person — their exact face, ${opts.goofy ? "" : "expression, "}hair, skin tone, facial hair, glasses/no-glasses, body proportions — plus ${opts.goofy ? "the lighting and the ivory studio background" : "the pose, camera framing, lighting and the ivory studio background"}. This must remain the same person${opts.goofy ? "" : ", with new clothes on"}. Treat the head region as protected: reproduce the face, hairline and glasses with photographic fidelity — no smoothing, no restyling, no drift.
 ${opts.goofy ? `\n${goofyPoseInstruction()}\n` : ""}
 
 REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
@@ -296,3 +299,7 @@ REQUIREMENTS:
 - Wearing a plain fitted heather-grey t-shirt and slim dark jeans, plain white sneakers.
 - Full frame head to feet, standing straight, arms relaxed, facing camera, natural expression consistent with the reference photos.
 - Soft ivory seamless studio backdrop, even lighting, 3:4 portrait.`;
+
+
+export const IDENTITY_NOTES_PROMPT = `You are building an identity passport for consistent AI rendering of one real person. Study the photo(s) and return JSON only: {"notes": string}.
+"notes" is a compact (max 110 words) physical description a portrait artist could verify against: face shape, skin tone (be specific), eye shape/color if visible, eyebrows, nose, lips, jawline, hairstyle + hairline + color, facial hair (exact style/length), eyewear (exact frame style/color or "no glasses"), ears, and any distinguishing features (moles, dimples, smile lines). Objective and neutral — no flattery, no guesses about things not visible.`;

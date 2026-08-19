@@ -116,6 +116,7 @@ export default async function ProfilePage() {
         <Card>
           <RenderPanel
             currentUrl={baseRenderUrl}
+            currentPath={person.base_render_path}
             history={renders}
             historyUrls={renderUrls}
             hasPhotos={photos.length > 0}

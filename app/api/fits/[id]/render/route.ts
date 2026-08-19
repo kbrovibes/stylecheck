@@ -52,6 +52,11 @@ export async function POST(
 
   try {
     const settings = await getOrCreateSettings(supabase, user.id);
+// The classic render is canonical — a goofy request on an unrendered fit
+    // produces the normal version first, then the goofy take.
+    if (goofy && !outfit.render_path) {
+      await renderOutfitRecord(supabase, user.id, outfit, personData as Person, settings);
+    }
     const path = await renderOutfitRecord(supabase, user.id, outfit, personData as Person, settings, { goofy });
     return NextResponse.json({ render_path: path });
   } catch (e) {

@@ -53,6 +53,7 @@ export interface Person {
   lon: number | null;
   place_name: string | null;
   base_render_path: string | null;
+  identity_notes: string | null;
   render_adjustments: RenderAdjustments | null;
   wardrobe_scene_path: string | null;
   wardrobe_scene_hash: string | null;

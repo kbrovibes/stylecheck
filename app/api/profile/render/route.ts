@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { canManage, getActivePerson } from "@/lib/person";
-import { generateBaseRender } from "@/lib/ai";
+import { generateBaseRender, generateIdentityNotes } from "@/lib/ai";
 import { downloadAsImageInput, imgUrl, uploadBase64 } from "@/lib/storage";
 import type { RenderAdjustments, UserPhoto } from "@/lib/types";
 
@@ -77,6 +77,17 @@ export async function POST(request: Request) {
     const images = await Promise.all(
       picked.map((p) => downloadAsImageInput(supabase, p.storage_path))
     );
+    // Refresh the identity passport from the real photos — future renders
+    // cross-check the face against this description.
+    try {
+      const identityNotes = await generateIdentityNotes(settings, images);
+      await supabase
+        .from("sc_people")
+        .update({ identity_notes: identityNotes })
+        .eq("id", person.id);
+    } catch (e) {
+      console.error("identity notes failed:", e);
+    }
     const result = await generateBaseRender(settings, person, images, adjustments);
     const path = `${user.id}/renders/base-${Date.now()}.png`;
     await uploadBase64(supabase, path, result.data, result.mimeType);

@@ -19,6 +19,7 @@ import {
 import { openaiImage, openaiJson } from "./openai";
 import {
   BASE_RENDER_PROMPT,
+  IDENTITY_NOTES_PROMPT,
   catalogImagePrompt,
   CLASSIFY_PROMPT,
   composeOutfitsPrompt,
@@ -79,6 +80,18 @@ export async function composeOutfits(
     .filter((o) => o.item_ids.length >= 2);
 }
 
+/** Compact physical description ("identity passport") from real photos. */
+export async function generateIdentityNotes(
+  settings: Settings,
+  photos: ImageInput[]
+): Promise<string> {
+  const res = await jsonCall<{ notes: string }>(settings)(
+    IDENTITY_NOTES_PROMPT,
+    photos.slice(0, 3)
+  );
+  return (res.notes ?? "").slice(0, 900);
+}
+
 /** Re-derive an item's catalogue metadata from its photo + a user correction. */
 export async function reclassifyItem(
   settings: Settings,
@@ -131,6 +144,8 @@ export async function renderOutfitImage(
     outfit: Pick<Outfit, "title" | "styling_notes"> | null;
     editBase?: boolean; // true when personImages[0] is the saved base render
     goofy?: boolean; // comedy pose, identity still locked
+    identityPhotos?: ImageInput[]; // REAL photos grounding the face each render
+    identityNotes?: string | null; // stored identity passport
   }
 ) {
   if (settings.provider === "openai") {
@@ -157,14 +172,26 @@ export async function renderOutfitImage(
 
   // With a base render: edit that ONE image ("change only the clothes") —
   // dramatically better identity preservation than generate-from-references.
+  const identityParts: MixedPart[] = (opts.identityPhotos ?? []).flatMap(
+    (image, i) => [
+      { text: `IDENTITY PROOF ${i + 1} — real photograph of the person:` } as MixedPart,
+      { image } as MixedPart,
+    ]
+  );
   const parts: MixedPart[] = opts.editBase
     ? [
         {
           text: "BASE IMAGE — the photograph to edit. The person in it must remain pixel-faithful except for their clothing:",
         },
         { image: opts.personImages[0] },
+        ...identityParts,
         ...itemParts,
-        { text: outfitEditPrompt(opts) },
+        {
+          text: outfitEditPrompt({
+            ...opts,
+            identityPhotoCount: opts.identityPhotos?.length ?? 0,
+          }),
+        },
       ]
     : [
         {

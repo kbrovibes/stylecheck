@@ -25,9 +25,10 @@ export const dynamic = "force-dynamic";
 export default async function FitsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ occasion?: string }>;
+  searchParams: Promise<{ occasion?: string; min?: string }>;
 }) {
-  const { occasion } = await searchParams;
+  const { occasion, min } = await searchParams;
+  const minScore = min === "8" || min === "9" ? Number(min) : null;
   const supabase = await createClient();
   const {
     data: { user },
@@ -55,6 +56,10 @@ export default async function FitsPage({
   ]);
 
   const outfits = (outfitsData ?? []) as Outfit[];
+  const visibleOutfits =
+    minScore === null
+      ? outfits
+      : outfits.filter((o) => (o.score ?? 0) >= minScore);
   const items = (itemsData ?? []) as WardrobeItem[];
   const itemById = new Map(items.map((i) => [i.id, i]));
 
@@ -89,7 +94,7 @@ export default async function FitsPage({
           return (
             <Link
               key={t.value}
-              href={t.value ? `/fits?occasion=${t.value}` : "/fits"}
+              href={`/fits${[t.value ? `occasion=${t.value}` : "", min ? `min=${min}` : ""].filter(Boolean).length ? `?${[t.value ? `occasion=${t.value}` : "", min ? `min=${min}` : ""].filter(Boolean).join("&")}` : ""}`}
               className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
                 active
                   ? "bg-ink text-ivory"
@@ -100,9 +105,34 @@ export default async function FitsPage({
             </Link>
           );
         })}
+        <span className="mx-1 hidden self-center text-ink-faint/40 sm:inline">|</span>
+        {[
+          { v: "", label: "Any rating" },
+          { v: "8", label: "8+" },
+          { v: "9", label: "9+" },
+        ].map((f) => {
+          const active = (min ?? "") === f.v;
+          const params = new URLSearchParams();
+          if (occasion) params.set("occasion", occasion);
+          if (f.v) params.set("min", f.v);
+          const qs = params.toString();
+          return (
+            <Link
+              key={f.label}
+              href={qs ? `/fits?${qs}` : "/fits"}
+              className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+                active
+                  ? "bg-camel text-ivory"
+                  : "border hairline bg-paper text-ink-soft hover:bg-ivory"
+              }`}
+            >
+              {f.label}
+            </Link>
+          );
+        })}
       </div>
 
-      {outfits.length === 0 ? (
+      {visibleOutfits.length === 0 ? (
         <EmptyState
           title="Nothing on the rack yet."
           body={
@@ -113,7 +143,7 @@ export default async function FitsPage({
         />
       ) : (
         <div className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
-          {outfits.map((o) => {
+          {visibleOutfits.map((o) => {
             const thumbs = o.item_ids
               .slice(0, 4)
               .map((iid) => itemById.get(iid))

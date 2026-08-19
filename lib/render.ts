@@ -24,21 +24,28 @@ export async function renderOutfitRecord(
   opts?: { goofy?: boolean }
 ) {
   try {
+    const { data: photosData } = await supabase
+      .from("sc_user_photos")
+      .select("*")
+      .eq("person_id", person.id)
+      .eq("deleted", false);
+    const rankedPhotos = ((photosData ?? []) as UserPhoto[]).sort(
+      (a, b) =>
+        Number(b.is_primary) - Number(a.is_primary) ||
+        (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9)
+    );
+
     const personImages: ImageInput[] = [];
+    let identityPhotos: ImageInput[] = [];
     if (person.base_render_path) {
       personImages.push(await downloadAsImageInput(supabase, person.base_render_path));
-    } else {
-      const { data: photosData } = await supabase
-        .from("sc_user_photos")
-        .select("*")
-        .eq("person_id", person.id)
-        .eq("deleted", false);
-      const photos = ((photosData ?? []) as UserPhoto[]).sort(
-        (a, b) =>
-          Number(b.is_primary) - Number(a.is_primary) ||
-          (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9)
+      // Ground every edit in real photos too, so identity errors never compound
+      // off a synthetic copy alone.
+      identityPhotos = await Promise.all(
+        rankedPhotos.slice(0, 2).map((p) => downloadAsImageInput(supabase, p.storage_path))
       );
-      for (const p of photos.slice(0, 3)) {
+    } else {
+      for (const p of rankedPhotos.slice(0, 3)) {
         personImages.push(await downloadAsImageInput(supabase, p.storage_path));
       }
     }
@@ -72,6 +79,8 @@ export async function renderOutfitRecord(
       outfit: { title: outfit.title, styling_notes: outfit.styling_notes },
       editBase: !!person.base_render_path,
       goofy: !!opts?.goofy,
+      identityPhotos,
+      identityNotes: person.identity_notes,
     });
 
     const path = await uploadBase64(

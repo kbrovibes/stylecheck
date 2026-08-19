@@ -60,6 +60,7 @@ function Dial({
 
 export default function RenderPanel({
   currentUrl,
+  currentPath,
   history,
   historyUrls,
   hasPhotos,
@@ -67,6 +68,7 @@ export default function RenderPanel({
   readOnly = false,
 }: {
   currentUrl: string | null;
+  currentPath: string | null;
   history: RenderRecord[];
   historyUrls: Record<string, string>;
   hasPhotos: boolean;
@@ -288,7 +290,7 @@ export default function RenderPanel({
               <div className="flex flex-wrap gap-3">
                 {history.map((r) => (
                   <div key={r.id} className="group/hist relative w-20">
-                    <div className="aspect-[3/4] overflow-hidden rounded-lg border hairline bg-ivory">
+                    <div className={`aspect-[3/4] overflow-hidden rounded-lg border bg-ivory ${r.storage_path === currentPath ? "border-camel" : "hairline"}`}>
                       {historyUrls[r.storage_path] && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -318,8 +320,34 @@ export default function RenderPanel({
                       ×
                     </button>
                     )}
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 space-y-1">
                       <Badge>{r.model.replace(/^gemini-|^gpt-/, "")}</Badge>
+                      {!readOnly && r.storage_path !== currentPath && (
+                        <button
+                          onClick={async () => {
+                            setError(null);
+                            const res = await fetch("/api/profile/render", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ path: r.storage_path }),
+                            });
+                            if (!res.ok) {
+                              const j = await res.json().catch(() => ({}));
+                              setError(j.error ?? "Could not switch render");
+                            } else {
+                              router.refresh();
+                            }
+                          }}
+                          className="block w-full rounded-full border hairline bg-paper py-0.5 text-[10px] font-medium text-ink-soft transition-colors hover:bg-ink hover:text-ivory"
+                        >
+                          Use as mannequin
+                        </button>
+                      )}
+                      {r.storage_path === currentPath && (
+                        <p className="text-center text-[10px] uppercase tracking-widest text-camel-deep">
+                          active
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
