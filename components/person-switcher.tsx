@@ -20,12 +20,16 @@ function Avatar({
   text?: string;
 }) {
   return person.img ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={person.img}
-      alt={person.name}
-      className={`${size} shrink-0 rounded-full object-cover object-top`}
-    />
+    // Mannequin renders are standardized (full body, head top-center, 3:4), so a
+    // fixed zoom-crop reliably frames just the face inside the bubble.
+    <span className={`relative ${size} shrink-0 overflow-hidden rounded-full bg-ivory`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={person.img}
+        alt={person.name}
+        className="absolute left-1/2 top-[-8%] w-[300%] max-w-none -translate-x-1/2"
+      />
+    </span>
   ) : (
     <span
       className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-ink font-serif ${text} italic text-camel`}
