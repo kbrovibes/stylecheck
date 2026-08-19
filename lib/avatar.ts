@@ -35,7 +35,7 @@ export async function generateFaceAvatar(
   const cx = (box.x + box.w / 2) * W;
   const cy = (box.y + box.h / 2) * H;
   const side = Math.min(
-    Math.max(box.w * W, box.h * H) * 1.7,
+    Math.max(box.w * W, box.h * H) * 1.35,
     Math.min(W, H)
   );
   const left = Math.round(Math.min(Math.max(cx - side / 2, 0), W - side));

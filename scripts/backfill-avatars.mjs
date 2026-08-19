@@ -27,7 +27,7 @@ for (const person of people ?? []) {
     const box = JSON.parse(res.text.replace(/^```(json)?|```$/g, '').trim());
     const W = meta.width, H = meta.height;
     const cx = (box.x + box.w / 2) * W, cy = (box.y + box.h / 2) * H;
-    const side = Math.min(Math.max(box.w * W, box.h * H) * 1.7, Math.min(W, H));
+    const side = Math.min(Math.max(box.w * W, box.h * H) * 1.35, Math.min(W, H));
     const left = Math.round(Math.min(Math.max(cx - side / 2, 0), W - side));
     const top = Math.round(Math.min(Math.max(cy - side / 2, 0), H - side));
     const out = await sharp(buf).extract({ left, top, width: Math.round(side), height: Math.round(side) }).resize(256, 256).jpeg({ quality: 85 }).toBuffer();
