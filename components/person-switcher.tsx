@@ -22,7 +22,7 @@ function Avatar({
   return person.img ? (
     // Mannequin renders are standardized (full body, head top-center, 3:4), so a
     // fixed zoom-crop reliably frames just the face inside the bubble.
-    <span className={`relative ${size} shrink-0 overflow-hidden rounded-full bg-ivory`}>
+    <span className={`relative block ${size} shrink-0 overflow-hidden rounded-full bg-ivory`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={person.img}
