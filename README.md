@@ -1,15 +1,52 @@
-# StyleCheck
+<div align="center">
 
-Personal wardrobe catalogue + AI fit checks — **rendered on you**.
+# S T Y L E C H E C K<sub>.</sub>
 
-**Live:** https://mystylecheck.vercel.app · GitHub: [kbrovibes/stylecheck](https://github.com/kbrovibes/stylecheck)
-(`stylecheck.vercel.app` was taken by another project; `stylecheck-mu.vercel.app` remains as a secondary alias.)
+**Your wardrobe, styled.** A personal AI stylist that catalogues every piece you own,<br/>knows your build, your age, and today's weather — and shows you wearing the outfit<br/>*before you get dressed.*
 
-Upload photos of your clothes and yourself. StyleCheck classifies every piece into a
-retail-style catalogue, builds a profile that knows your height, weight, and local
-weather, then acts as a modern-minimal stylist: composing outfits from *your* wardrobe,
-explaining why each one works on *your* frame, and generating photorealistic full-body
-renders of you wearing them — head to shoes.
+[**mystylecheck.vercel.app**](https://mystylecheck.vercel.app)
+
+![Next.js 16](https://img.shields.io/badge/Next.js%2016-111?logo=nextdotjs&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-111?logo=supabase&logoColor=3ECF8E)
+![Gemini](https://img.shields.io/badge/Gemini%203%20Pro%20Image-111?logo=googlegemini&logoColor=8AB4F8)
+![Vercel](https://img.shields.io/badge/Vercel-111?logo=vercel&logoColor=white)
+![Tailwind 4](https://img.shields.io/badge/Tailwind%204-111?logo=tailwindcss&logoColor=38BDF8)
+
+<img src="docs/media/banner.jpg" alt="StyleCheck wardrobe scene" width="920"/>
+
+</div>
+
+## How it works
+
+<table>
+<tr>
+<td width="33%" align="center">
+  <img src="docs/media/mannequin.jpg" alt="Build your mannequin"/><br/><br/>
+  <b>01 · Build your mannequin</b><br/>
+  <sub>Upload a selfie and a full-body shot. StyleCheck builds a photoreal, identity-locked render of <i>you</i> — face, build, height, honest silhouette. Tune it with body-calibration dials.</sub>
+</td>
+<td width="33%" align="center">
+  <img src="docs/media/wardrobe.jpg" alt="Catalogue your closet"/><br/><br/>
+  <b>02 · Catalogue your closet</b><br/>
+  <sub>Photograph clothes worn, hung, or heaped. Every piece is detected (even multiple per photo), named, and re-shot as a clean retail-style product image — automatically.</sub>
+</td>
+<td width="33%" align="center">
+  <img src="docs/media/fits.jpg" alt="Generate your fits"/><br/><br/>
+  <b>03 · Generate. Voilà.</b><br/>
+  <sub>A minimal-fashion stylist composes outfits from your actual wardrobe — age-, weather-, and occasion-aware — and renders each on your mannequin, head to shoes, with the "why".</sub>
+</td>
+</tr>
+</table>
+
+## Highlights
+
+- **A wardrobe you can walk into** — the home screen is an AI-composed walk-in-closet scene built from your real pieces, with clickable rails and shelves. Cached and refreshed nightly only when your wardrobe changes.
+- **Identity engine** — renders are grounded in your real photos plus a stored "identity passport" (a verified physical description), edit-framed off one anchor mannequin so your face stays *your face* across every look.
+- **Profiles & sharing** — multiple people per account (you, your kid). Share any profile by email as viewer or manager; permissions live in the database (RLS), not just the UI.
+- **Fit intelligence** — occasion tags (work / casual / friends / date), stylist explanations, one-tap subtle variations ("same fit, different jeans"), rating filters, and per-fit re-renders.
+- **Goofy mode** — every fit optionally gets an identity-locked comedy-pose take. Swipe between classic and goofy. Zero dignity, full likeness.
+- **Never-delete media** — soft deletes only; every render is kept with its model tag for side-by-side model comparison (Gemini default, OpenAI slot wired).
+- **Nightly automation** — 2am crons refresh scenes, backfill product shots, and run queued full-wardrobe restyles, self-chaining across serverless limits.
 
 ## Stack
 
