@@ -31,6 +31,12 @@ export async function POST(
     return NextResponse.json({ error: "Fit not found" }, { status: 404 });
   }
   const outfit = outfitData as Outfit;
+  if (outfit.render_status === "pending") {
+    return NextResponse.json(
+      { error: "Already rendering this fit — give it a moment." },
+      { status: 409 }
+    );
+  }
 
   const { data: ok } = outfit.person_id
     ? await supabase.rpc("sc_can_manage_person", { pid: outfit.person_id })

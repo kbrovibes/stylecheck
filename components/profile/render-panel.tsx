@@ -295,7 +295,7 @@ export default function RenderPanel({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={historyUrls[r.storage_path]}
-                          alt={r.model}
+                          alt="Previous render"
                           className="h-full w-full object-cover object-top"
                         />
                       )}
@@ -321,7 +321,7 @@ export default function RenderPanel({
                     </button>
                     )}
                     <div className="mt-1.5 space-y-1">
-                      <Badge>{r.model.replace(/^gemini-|^gpt-/, "")}</Badge>
+                      <Badge>{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</Badge>
                       {!readOnly && r.storage_path !== currentPath && (
                         <button
                           onClick={async () => {

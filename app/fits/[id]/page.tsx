@@ -163,11 +163,6 @@ export default async function FitDetailPage({
                 goofy
               />
             )}
-            {outfit.render_model && (
-              <p className="mt-2 text-center text-[11px] uppercase tracking-widest text-ink-faint">
-                rendered with {outfit.render_model}
-              </p>
-            )}
           </div>
         </div>
 
@@ -273,13 +268,13 @@ export default async function FitDetailPage({
                     <ZoomImage
                       src={urls[r.storage_path]}
                       alt="Previous render"
-                      caption={r.model}
+                      caption={new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       className="h-full w-full object-cover object-top"
                     />
                   ) : null}
                 </div>
                 <div className="mt-2 space-y-1">
-                  <Badge>{r.model}</Badge>
+                  <Badge>{r.subject_type === "outfit_goofy" ? "goofy" : "classic"}</Badge>
                   <p className="text-[11px] text-ink-faint">
                     {new Date(r.created_at).toLocaleDateString("en-US", {
                       month: "short",

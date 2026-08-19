@@ -99,6 +99,15 @@ export async function renderOutfitRecord(
       model: settings.image_model,
       prompt_summary: outfit.title,
     });
+    // Casual re-renders shouldn't pile up: retire prior renders of this type
+    // for this fit (soft delete — files are kept, per the never-delete policy).
+    await supabase
+      .from("sc_renders")
+      .update({ deleted: true })
+      .eq("subject_type", opts?.goofy ? "outfit_goofy" : "outfit")
+      .eq("subject_id", outfit.id)
+      .eq("deleted", false)
+      .neq("storage_path", path);
     await supabase
       .from("sc_outfits")
       .update(

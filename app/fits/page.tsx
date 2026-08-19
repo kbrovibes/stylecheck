@@ -3,10 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { getActivePerson } from "@/lib/person";
 import { imgUrls } from "@/lib/storage";
-import { Badge, EmptyState, PageTitle } from "@/components/ui";
+import { EmptyState, PageTitle } from "@/components/ui";
 import GenerateButton from "@/components/fits/generate-button";
-import TileRenderButton from "@/components/fits/tile-render-button";
-import RenderCarousel from "@/components/fits/render-carousel";
+import FitsGallery, { type FitCard } from "@/components/fits/fits-gallery";
 import {
   OCCASION_LABELS,
   type Occasion,
@@ -77,6 +76,25 @@ export default async function FitsPage({
   }
   const urls = imgUrls([...paths]);
 
+  const cards: FitCard[] = visibleOutfits.map((o) => ({
+    id: o.id,
+    title: o.title,
+    occasion: o.occasion,
+    occasionLabel: o.occasion
+      ? (OCCASION_LABELS[o.occasion as Occasion] ?? o.occasion)
+      : null,
+    seasons: o.seasons ?? [],
+    score: o.score,
+    classicUrl: o.render_path ? (urls[o.render_path] ?? null) : null,
+    goofyUrl: o.goofy_render_path ? (urls[o.goofy_render_path] ?? null) : null,
+    goofyLead: goofyFirst(o.id),
+    thumbs: o.item_ids.slice(0, 4).map((iid) => {
+      const item = itemById.get(iid);
+      const path = item ? (item.catalog_image_path ?? item.original_image_path) : null;
+      return { id: iid, url: path ? (urls[path] ?? null) : null };
+    }),
+  }));
+
   const tabs: { value: string; label: string }[] = [
     { value: "", label: "All" },
     ...Object.entries(OCCASION_LABELS).map(([value, label]) => ({ value, label })),
@@ -142,99 +160,7 @@ export default async function FitsPage({
           }
         />
       ) : (
-        <div className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
-          {visibleOutfits.map((o) => {
-            const thumbs = o.item_ids
-              .slice(0, 4)
-              .map((iid) => itemById.get(iid))
-              .filter(Boolean) as WardrobeItem[];
-            return (
-              <Link
-                key={o.id}
-                href={`/fits/${o.id}`}
-                className="group overflow-hidden rounded-2xl border hairline bg-paper transition-shadow hover:shadow-lg hover:shadow-ink/5"
-              >
-                <div className="relative aspect-[3/4] overflow-hidden bg-ivory">
-                  <TileRenderButton
-                    outfitId={o.id}
-                    hasRender={goofyMode ? !!o.goofy_render_path : !!o.render_path}
-                    goofy={goofyMode}
-                  />
-                  {goofyMode && !o.goofy_render_path && o.render_path && (
-                    <span className="absolute bottom-2 left-2 z-10 rounded-full bg-ink/60 px-2.5 py-1 text-[10px] text-ivory backdrop-blur">
-                      no goofy take yet
-                    </span>
-                  )}
-                  {goofyMode && o.goofy_render_path && o.render_path ? (
-                    <RenderCarousel
-                      slides={
-                        goofyFirst(o.id)
-                          ? [
-                              { url: urls[o.goofy_render_path], label: "goofy" },
-                              { url: urls[o.render_path], label: "classic" },
-                            ]
-                          : [
-                              { url: urls[o.render_path], label: "classic" },
-                              { url: urls[o.goofy_render_path], label: "goofy" },
-                            ]
-                      }
-                      imgClass="object-cover object-top"
-                    />
-                  ) : (goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : o.render_path && urls[o.render_path]) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={goofyMode && o.goofy_render_path ? urls[o.goofy_render_path] : urls[o.render_path!]}
-                      alt={o.title ?? "Fit"}
-                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="grid h-full grid-cols-2 gap-1 p-3">
-                      {thumbs.map((t) => {
-                        const p = t.catalog_image_path ?? t.original_image_path;
-                        return urls[p] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={t.id}
-                            src={urls[p]}
-                            alt={t.name ?? t.category}
-                            className="h-full w-full rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div key={t.id} className="rounded-lg bg-hairline/50" />
-                        );
-                      })}
-                      <div className="absolute inset-x-0 bottom-2 text-center">
-                        <span className="rounded-full bg-paper/85 px-2.5 py-1 text-[10px] uppercase tracking-widest text-ink-faint backdrop-blur">
-                          unrendered
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-start justify-between gap-2 p-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium">{o.title}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {o.occasion && (
-                        <Badge tone="camel">
-                          {OCCASION_LABELS[o.occasion as Occasion] ?? o.occasion}
-                        </Badge>
-                      )}
-                      {o.seasons.slice(0, 2).map((s) => (
-                        <Badge key={s}>{s}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                  {o.score != null && (
-                    <span className="serif-accent shrink-0 text-lg text-camel">
-                      {Number(o.score).toFixed(1)}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <FitsGallery cards={cards} goofyMode={goofyMode} />
       )}
     </div>
   );
