@@ -16,6 +16,7 @@ export interface FitCard {
   classicUrl: string | null;
   goofyUrl: string | null;
   goofyLead: boolean; // stable random: which take leads in goofy mode
+  degraded: boolean; // references pieces no longer in the wardrobe
   thumbs: { id: string; url: string | null }[];
 }
 
@@ -62,20 +63,34 @@ const VIEWS: { key: View; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-function leadUrl(c: FitCard, goofyMode: boolean) {
+// In goofy mode, alternate leads down the list so goofy and classic takes are
+// evenly spread across the layout.
+function leadUrl(c: FitCard, goofyMode: boolean, index: number) {
   if (goofyMode && c.goofyUrl && c.classicUrl)
-    return c.goofyLead ? c.goofyUrl : c.classicUrl;
-  return (goofyMode && c.goofyUrl) || c.classicUrl || c.goofyUrl;
+    return index % 2 === 0 ? c.goofyUrl : c.classicUrl;
+  if (goofyMode && c.goofyUrl) return c.goofyUrl;
+  return c.classicUrl || (goofyMode ? c.goofyUrl : null);
 }
 
 export default function FitsGallery({
   cards,
-  goofyMode,
+  goofyMode: goofyModeInitial,
 }: {
   cards: FitCard[];
   goofyMode: boolean;
 }) {
   const [view, setView] = useState<View>("grid");
+  const [goofyMode, setGoofyMode] = useState(goofyModeInitial);
+
+  function toggleGoofy() {
+    const next = !goofyMode;
+    setGoofyMode(next); // instant flip; persist in the background
+    fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goofy_mode: next }),
+    }).catch(() => {});
+  }
 
   useEffect(() => {
     const stored = localStorage.getItem(VIEW_KEY) as View | null;
@@ -89,8 +104,33 @@ export default function FitsGallery({
 
   return (
     <div>
-      {/* View switcher */}
-      <div className="mb-4 flex justify-end">
+      {/* Goofy toggle + view switcher */}
+      <div className="mb-4 flex items-center justify-end gap-3">
+        <button
+          onClick={toggleGoofy}
+          role="switch"
+          aria-checked={goofyMode}
+          className="group flex items-center gap-2"
+        >
+          <span
+            className={`text-[12px] font-medium transition-colors ${
+              goofyMode ? "text-ink" : "text-ink-faint group-hover:text-ink-soft"
+            }`}
+          >
+            Goofy
+          </span>
+          <span
+            className={`relative h-[22px] w-[38px] rounded-full transition-colors duration-200 ${
+              goofyMode ? "bg-camel" : "bg-hairline"
+            }`}
+          >
+            <span
+              className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-paper shadow-sm transition-all duration-200 ${
+                goofyMode ? "left-[18px]" : "left-[2px]"
+              }`}
+            />
+          </span>
+        </button>
         <div className="flex gap-0.5 rounded-full border hairline bg-paper p-0.5">
           {VIEWS.map((v) => (
             <button
@@ -110,11 +150,11 @@ export default function FitsGallery({
 
       {view === "grid" && (
         <div className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
-          {cards.map((c) => (
+          {cards.map((c, index) => (
             <Link
               key={c.id}
               href={`/fits/${c.id}`}
-              className="group overflow-hidden rounded-2xl border hairline bg-paper transition-shadow hover:shadow-lg hover:shadow-ink/5"
+              className={`group overflow-hidden rounded-2xl border hairline bg-paper transition-shadow hover:shadow-lg hover:shadow-ink/5 ${c.degraded ? "opacity-60 saturate-50" : ""}`}
             >
               <div className="relative aspect-[3/4] overflow-hidden bg-ivory">
                 <TileRenderButton
@@ -127,10 +167,15 @@ export default function FitsGallery({
                     no goofy take yet
                   </span>
                 )}
+                {c.degraded && (
+                  <span className="absolute left-2 top-2 z-10 rounded-full bg-ink/60 px-2.5 py-1 text-[10px] text-ivory backdrop-blur">
+                    piece removed
+                  </span>
+                )}
                 {goofyMode && c.goofyUrl && c.classicUrl ? (
                   <RenderCarousel
                     slides={
-                      c.goofyLead
+                      index % 2 === 0
                         ? [
                             { url: c.goofyUrl, label: "goofy" },
                             { url: c.classicUrl, label: "classic" },
@@ -142,10 +187,10 @@ export default function FitsGallery({
                     }
                     imgClass="object-cover object-top"
                   />
-                ) : leadUrl(c, goofyMode) ? (
+                ) : leadUrl(c, goofyMode, index) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={leadUrl(c, goofyMode)!}
+                    src={leadUrl(c, goofyMode, index)!}
                     alt={c.title ?? "Fit"}
                     className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
                   />
@@ -176,16 +221,16 @@ export default function FitsGallery({
 
       {view === "compact" && (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-          {cards.map((c) => (
+          {cards.map((c, index) => (
             <Link
               key={c.id}
               href={`/fits/${c.id}`}
-              className="group relative aspect-[3/4] overflow-hidden rounded-xl border hairline bg-ivory"
+              className={`group relative aspect-[3/4] overflow-hidden rounded-xl border hairline bg-ivory ${c.degraded ? "opacity-60 saturate-50" : ""}`}
             >
-              {leadUrl(c, goofyMode) ? (
+              {leadUrl(c, goofyMode, index) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={leadUrl(c, goofyMode)!}
+                  src={leadUrl(c, goofyMode, index)!}
                   alt={c.title ?? "Fit"}
                   className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]"
                 />
@@ -204,17 +249,17 @@ export default function FitsGallery({
 
       {view === "list" && (
         <div className="divide-y hairline overflow-hidden rounded-2xl border hairline bg-paper">
-          {cards.map((c) => (
+          {cards.map((c, index) => (
             <Link
               key={c.id}
               href={`/fits/${c.id}`}
-              className="flex items-center gap-3.5 px-3.5 py-2.5 transition-colors hover:bg-ivory"
+              className={`flex items-center gap-3.5 px-3.5 py-2.5 transition-colors hover:bg-ivory ${c.degraded ? "opacity-60" : ""}`}
             >
               <span className="h-16 w-12 shrink-0 overflow-hidden rounded-lg bg-ivory">
-                {leadUrl(c, goofyMode) ? (
+                {leadUrl(c, goofyMode, index) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={leadUrl(c, goofyMode)!}
+                    src={leadUrl(c, goofyMode, index)!}
                     alt=""
                     className="h-full w-full object-cover object-top"
                   />

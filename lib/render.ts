@@ -56,9 +56,14 @@ export async function renderOutfitRecord(
     const { data: itemsData } = await supabase
       .from("sc_wardrobe_items")
       .select("*")
-      .in("id", outfit.item_ids);
+      .in("id", outfit.item_ids)
+      .eq("deleted", false)
+      .eq("enabled", true);
     const items = (itemsData ?? []) as WardrobeItem[];
-    if (!items.length) throw new Error("This fit's wardrobe items could not be loaded.");
+    if (!items.length)
+      throw new Error(
+        "None of this fit's pieces are in the wardrobe anymore — revive it with a swap or remove it."
+      );
 
     const itemImages = await Promise.all(
       items.map((i) =>

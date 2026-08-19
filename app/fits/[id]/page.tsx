@@ -5,6 +5,7 @@ import { getOrCreateSettings } from "@/lib/account";
 import { imgUrls } from "@/lib/storage";
 import { Badge, Card, Eyebrow } from "@/components/ui";
 import RenderButton from "@/components/fits/render-button";
+import FitActions from "@/components/fits/fit-actions";
 import RenderCarousel from "@/components/fits/render-carousel";
 import ZoomImage from "@/components/lightbox";
 import VariationLinks, {
@@ -74,6 +75,11 @@ export default async function FitDetailPage({
   const items = outfit.item_ids
     .map((iid) => itemById.get(iid))
     .filter(Boolean) as WardrobeItem[];
+  const { data: canManage } = outfit.person_id
+    ? await supabase.rpc("sc_can_manage_person", { pid: outfit.person_id })
+    : { data: true };
+  const liveIds = new Set(items.map((i) => i.id));
+  const deadCount = outfit.item_ids.filter((iid) => !liveIds.has(iid)).length;
   const renders = (rendersData ?? []) as RenderRecord[];
 
   const paths = new Set<string>();
@@ -163,6 +169,11 @@ export default async function FitDetailPage({
                 goofy
               />
             )}
+            <FitActions
+              outfitId={outfit.id}
+              deadCount={deadCount}
+              readOnly={!canManage}
+            />
           </div>
         </div>
 

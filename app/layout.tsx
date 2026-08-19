@@ -52,7 +52,7 @@ export default async function RootLayout({
         id: p.person.id,
         name: p.person.name,
         role: p.role,
-        img: p.person.base_render_path ? imgUrl(p.person.base_render_path) : null,
+        img: p.person.avatar_path ? imgUrl(p.person.avatar_path) : null,
       })),
       activeId: person.id,
     };

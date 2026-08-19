@@ -116,6 +116,11 @@ CONSTRAINTS:
 - Prefer variety across the set — different anchors, not five variations of one look.
 ${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
 
+SCORING — be a genuinely critical stylist, not a cheerleader:
+- Calibrate: 5 = wearable but forgettable · 6 = good · 7 = strong · 8 = excellent, lookbook-worthy · 9 = near-perfect (rare: at most ONE per batch) · 10 = never given.
+- Use the full 4-9 range with decimals (e.g. 5.8, 7.2). Spread scores out — the batch average should land around 6.5, and no two outfits should share a score unless they are truly equal.
+- Penalize: safe/boring combinations, formality mismatches, muddy color stories, season conflicts, repetitive anchors across the batch.
+
 Respond with JSON only:
 {
   "outfits": [
@@ -127,7 +132,7 @@ Respond with JSON only:
       "explanation": string,              // 2-3 sentences on WHY this works for THIS person (build, coloring, weather, occasion)
       "styling_notes": string,            // tuck/cuff/layer guidance
       "weather_note": string,             // one line tying it to current weather, or ""
-      "score": number,                    // 0-10 stylist confidence
+      "score": number,                    // see SCORING below — be a harsh critic
       "variations": [                     // subtle single-item swaps that also work
         { "label": string, "swap_out": string, "swap_in": string }   // item ids
       ]
@@ -303,3 +308,32 @@ REQUIREMENTS:
 
 export const IDENTITY_NOTES_PROMPT = `You are building an identity passport for consistent AI rendering of one real person. Study the photo(s) and return JSON only: {"notes": string}.
 "notes" is a compact (max 110 words) physical description a portrait artist could verify against: face shape, skin tone (be specific), eye shape/color if visible, eyebrows, nose, lips, jawline, hairstyle + hairline + color, facial hair (exact style/length), eyewear (exact frame style/color or "no glasses"), ears, and any distinguishing features (moles, dimples, smile lines). Objective and neutral — no flattery, no guesses about things not visible.`;
+
+
+export function reviveOutfitPrompt(opts: {
+  outfit: Pick<Outfit, "title" | "occasion" | "explanation">;
+  deadItemIds: string[];
+  liveItems: WardrobeItem[];
+  keptItems: WardrobeItem[];
+}) {
+  const wardrobe = opts.liveItems
+    .map((i) => `- id=${i.id} | ${i.category}${i.subcategory ? `/${i.subcategory}` : ""} | ${i.name ?? "unnamed"} | ${i.primary_color ?? i.colors.join(",")} | formality: ${i.formality ?? "?"}`)
+    .join("\n");
+  const kept = opts.keptItems
+    .map((i) => `- ${i.category}: ${i.name ?? i.subcategory} (${i.primary_color ?? ""})`)
+    .join("\n");
+  return `You are a minimal fashion stylist. The outfit "${opts.outfit.title}" (occasion: ${opts.outfit.occasion ?? "any"}) lost ${opts.deadItemIds.length} piece(s) — they were removed from the wardrobe. Revive the outfit by picking the best replacement for each lost piece from the CURRENT wardrobe, keeping the look coherent with the remaining pieces.
+
+REMAINING PIECES (keep these):
+${kept}
+
+CURRENT WARDROBE (choose replacements from here — copy ids exactly):
+${wardrobe}
+
+Respond with JSON only:
+{
+  "replacement_ids": string[],          // one id per lost piece; [] if no sensible replacement exists
+  "explanation": string,                // refreshed 2-3 sentence "why this works" for the revived outfit
+  "styling_notes": string
+}`;
+}

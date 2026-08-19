@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { canManage, getActivePerson } from "@/lib/person";
 import { generateBaseRender, generateIdentityNotes } from "@/lib/ai";
+import { generateFaceAvatar } from "@/lib/avatar";
 import { downloadAsImageInput, imgUrl, uploadBase64 } from "@/lib/storage";
 import type { RenderAdjustments, UserPhoto } from "@/lib/types";
 
@@ -161,5 +162,10 @@ export async function PUT(request: Request) {
     update.render_adjustments = sanitizeAdjustments(body.adjustments);
   }
   await supabase.from("sc_people").update(update).eq("id", person.id);
+  try {
+    await generateFaceAvatar(supabase, user.id, { ...person, base_render_path: path });
+  } catch (e) {
+    console.error("avatar generation failed:", e);
+  }
   return NextResponse.json({ ok: true });
 }
