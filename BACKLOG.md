@@ -103,6 +103,19 @@
 - Nightly crons (scene, restyle, rerender) iterate people, using each owner's
   model settings.
 
+### v3.0 — 2026-08-21 · "FitCheck" launch sprint
+
+- **Renamed to FitCheck** (myfitcheck.vercel.app, F. icon, wordmark, README) — repo/internals unchanged.
+- **Invite-only launch gate**: sc_allowlist + sign-in check + admin Invites UI in Settings.
+- **Per-user daily credits** (60 image / 300 text, midnight-PT reset, DB-enforced, admin exempt).
+- **Today's picks**: 3 daily, deterministic, occasion-diverse, weather/reaction-aware.
+- **Wardrobe**: item detail lists fits containing it; Select & Style (compose a fit from
+  hand-picked pieces with completeness validation); "Style unused pieces" generation.
+- **Occasion accuracy**: strict definitions, one-time relabel audit (21 fixed) + gap-fill.
+- **Thumbs up/down** on fits; dislikes steer future composition.
+- **Launch hardening from UX study**: duplicate-default-profile race fixed; generated
+  images stored as JPEG (~6× smaller); UX/PM validation report delivered as Google Doc.
+
 ## Backlog
 
 | # | Item | Why |
