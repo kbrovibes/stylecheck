@@ -37,6 +37,10 @@ const SLIDES = [
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [denied, setDenied] = useState(false);
+  useEffect(() => {
+    setDenied(new URLSearchParams(window.location.search).get("denied") === "1");
+  }, []);
   const [idx, setIdx] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const touchedRef = useRef(false);
@@ -128,6 +132,12 @@ export default function LoginPage() {
 
       {/* Dots + primary CTA */}
       <footer className="flex flex-col items-center gap-5 px-6 pb-8 pt-2 sm:pb-10">
+        {denied && (
+          <p className="max-w-sm rounded-2xl border border-camel/40 bg-camel/5 px-4 py-3 text-center text-[13px] text-ink-soft">
+            FitCheck is <span className="serif-accent text-camel-deep">invite-only</span> right
+            now — ask Karthik to add your email, then sign in again.
+          </p>
+        )}
         <div className="flex gap-2">
           {SLIDES.map((_, i) => (
             <button

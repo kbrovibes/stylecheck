@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Outfit, Person, Settings, UserPhoto, WardrobeItem } from "@/lib/types";
 import { renderOutfitImage, type ImageInput } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
+import { toJpegBase64 } from "@/lib/img-server";
 
 const KIND_ORDER: Record<string, number> = {
   full_body: 0,
@@ -88,11 +89,12 @@ export async function renderOutfitRecord(
       identityNotes: person.identity_notes,
     });
 
+    const jpeg = await toJpegBase64(image.data);
     const path = await uploadBase64(
       supabase,
-      `${writerUserId}/renders/outfit-${outfit.id}${opts?.goofy ? "-goofy" : ""}-${Date.now()}.${extFromMime(image.mimeType)}`,
-      image.data,
-      image.mimeType
+      `${writerUserId}/renders/outfit-${outfit.id}${opts?.goofy ? "-goofy" : ""}-${Date.now()}.${extFromMime(jpeg.mimeType)}`,
+      jpeg.data,
+      jpeg.mimeType
     );
 
     await supabase.from("sc_renders").insert({

@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { generateCatalogImage, reclassifyItem } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
+import { toJpegBase64 } from "@/lib/img-server";
 import type { WardrobeItem } from "@/lib/types";
 
 export const maxDuration = 120;
@@ -81,9 +82,9 @@ export async function POST(
       }
     }
     const result = await generateCatalogImage(settings, original, item, hint);
-
-    const path = `${user.id}/catalog/${item.id}-${Date.now()}.${extFromMime(result.mimeType)}`;
-    await uploadBase64(supabase, path, result.data, result.mimeType);
+    const jpeg = await toJpegBase64(result.data, 90);
+    const path = `${user.id}/catalog/${item.id}-${Date.now()}.${extFromMime(jpeg.mimeType)}`;
+    await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
 
     await supabase
       .from("sc_wardrobe_items")

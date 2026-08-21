@@ -3,6 +3,7 @@ import { getOrCreateSettings } from "@/lib/account";
 import { PageTitle } from "@/components/ui";
 import SettingsForm from "@/components/settings/settings-form";
 import AdminPanel, { type AdminStats } from "@/components/settings/admin-panel";
+import AllowlistCard from "@/components/settings/allowlist-card";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function SettingsPage() {
       <PageTitle eyebrow="Settings" title="Tune your" accent="stylist" />
       <SettingsForm settings={settings} openaiConfigured={openaiConfigured} />
       {adminStats && <AdminPanel stats={adminStats} />}
+      {adminStats && <AllowlistCard />}
     </div>
   );
 }

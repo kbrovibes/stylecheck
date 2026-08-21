@@ -5,6 +5,7 @@ import { getOrCreateSettings } from "@/lib/account";
 import { canManage, getActivePerson } from "@/lib/person";
 import { generateBaseRender, generateIdentityNotes } from "@/lib/ai";
 import { generateFaceAvatar } from "@/lib/avatar";
+import { toJpegBase64 } from "@/lib/img-server";
 import { downloadAsImageInput, imgUrl, uploadBase64 } from "@/lib/storage";
 import type { RenderAdjustments, UserPhoto } from "@/lib/types";
 
@@ -97,8 +98,9 @@ export async function POST(request: Request) {
       console.error("identity notes failed:", e);
     }
     const result = await generateBaseRender(settings, person, images, adjustments);
-    const path = `${user.id}/renders/base-${Date.now()}.png`;
-    await uploadBase64(supabase, path, result.data, result.mimeType);
+    const jpeg = await toJpegBase64(result.data, 90);
+    const path = `${user.id}/renders/base-${Date.now()}.jpg`;
+    await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
 
     const adjSummary = adjustments
       ? ` adj[b${adjustments.build}/s${adjustments.shoulders}/w${adjustments.waist}${adjustments.note ? " +note" : ""}]`

@@ -57,7 +57,19 @@ async function ensureDefaultPerson(
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    // Unique partial index guards against concurrent lazy-creates (layout +
+    // page render race) — on conflict, the winner's row is ours.
+    const { data: existing } = await supabase
+      .from("sc_people")
+      .select("*")
+      .eq("owner_id", user.id)
+      .eq("is_default", true)
+      .eq("deleted", false)
+      .maybeSingle();
+    if (existing) return existing as Person;
+    throw error;
+  }
   return data as Person;
 }
 

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Settings, WardrobeItem } from "@/lib/types";
 import { generateCatalogImage } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
+import { toJpegBase64 } from "@/lib/img-server";
 
 /** Generate + persist a clean product shot for one item. */
 export async function generateCatalogShotForItem(
@@ -13,8 +14,9 @@ export async function generateCatalogShotForItem(
 ) {
   const original = await downloadAsImageInput(supabase, item.original_image_path);
   const shot = await generateCatalogImage(settings, original, item, hint);
-  const path = `${userId}/catalog/${item.id}-${Date.now()}.${extFromMime(shot.mimeType)}`;
-  await uploadBase64(supabase, path, shot.data, shot.mimeType);
+  const jpeg = await toJpegBase64(shot.data, 90);
+  const path = `${userId}/catalog/${item.id}-${Date.now()}.${extFromMime(jpeg.mimeType)}`;
+  await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
   await supabase
     .from("sc_wardrobe_items")
     .update({ catalog_image_path: path, catalog_source: "generated" })

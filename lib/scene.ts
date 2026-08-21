@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Category, Person, Settings, WardrobeItem } from "@/lib/types";
 import { generateWardrobeSceneImage } from "@/lib/ai";
 import { downloadAsImageInput, uploadBase64 } from "@/lib/storage";
+import { toJpegBase64 } from "@/lib/img-server";
 
 const HANGING: Category[] = ["top", "outerwear", "full_body"];
 const FOLDED: Category[] = ["bottom"];
@@ -82,8 +83,9 @@ export async function generateWardrobeScene(
     );
 
     const result = await generateWardrobeSceneImage(settings, itemNames, refs);
-    const path = `${writerUserId}/scenes/scene-${Date.now()}.png`;
-    await uploadBase64(supabase, path, result.data, result.mimeType);
+    const jpeg = await toJpegBase64(result.data);
+    const path = `${writerUserId}/scenes/scene-${Date.now()}.jpg`;
+    await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
 
     await supabase.from("sc_renders").insert({
       user_id: writerUserId,
