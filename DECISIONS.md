@@ -1,4 +1,4 @@
-# FitCheck — Decision Log
+# Hanger Management — Decision Log
 
 Decisions made autonomously (2026-08-21 sprint). Flag anything you'd change.
 
@@ -42,3 +42,9 @@ Decisions made autonomously (2026-08-21 sprint). Flag anything you'd change.
   created via the Supabase admin API (`fitcheck.tester@…`) exercising the real API
   surface as a brand-new user, plus a heuristic UX audit of every screen. Report
   delivered as a Google Doc. Test account is flagged for deletion post-study.
+
+## Rebrand #2 (2026-08-21)
+- **FitCheck → Hanger Management** on request. Primary domain **hangermanagement.vercel.app**
+  (was free, claimed; myfitcheck/mystylecheck/stylecheck-mu all still alias). Icon is now a
+  hanger mark on the gold tile; PWA short name "Hangers" (home-screen space); wordmark
+  "HANGER management." in the editorial two-tone style. Repo/internals still `stylecheck`.

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 const SLIDES = [
   {
     img: "/intro/banner.jpg",
-    eyebrow: "Fitcheck",
+    eyebrow: "Hanger Management",
     title: "Your wardrobe,",
     accent: "styled.",
     body: "A personal stylist that knows every piece you own — and shows you wearing it before you get dressed.",
@@ -17,7 +17,7 @@ const SLIDES = [
     eyebrow: "Step 01",
     title: "Build your",
     accent: "mannequin",
-    body: "Upload a few photos — a selfie, a full-body shot. FitCheck builds a photoreal render of you: your face, your build, your proportions. Honest, not idealized.",
+    body: "Upload a few photos — a selfie, a full-body shot. Hanger Management builds a photoreal render of you: your face, your build, your proportions. Honest, not idealized.",
   },
   {
     img: "/intro/wardrobe.jpg",
@@ -77,8 +77,8 @@ export default function LoginPage() {
       {/* Top bar */}
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
         <p className="select-none">
-          <span className="font-serif text-[16px] uppercase tracking-[0.3em]">Fitcheck</span>
-          <span className="font-serif text-[18px] text-camel">.</span>
+          <span className="font-serif text-[15px] uppercase tracking-[0.18em]">Hanger</span>
+          <span className="serif-accent text-[16px] text-camel"> management.</span>
         </p>
         <button
           onClick={signIn}
@@ -134,8 +134,8 @@ export default function LoginPage() {
       <footer className="flex flex-col items-center gap-5 px-6 pb-8 pt-2 sm:pb-10">
         {denied && (
           <p className="max-w-sm rounded-2xl border border-camel/40 bg-camel/5 px-4 py-3 text-center text-[13px] text-ink-soft">
-            FitCheck is <span className="serif-accent text-camel-deep">invite-only</span> right
-            now — ask Karthik to add your email, then sign in again.
+            Hanger Management is <span className="serif-accent text-camel-deep">invite-only</span>{" "}
+            right now — ask Karthik to add your email, then sign in again.
           </p>
         )}
         <div className="flex gap-2">

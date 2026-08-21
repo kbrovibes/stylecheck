@@ -1,10 +1,10 @@
 <div align="center">
 
-# F I T C H E C K<sub>.</sub>
+# HANGER&nbsp;MANAGEMENT<sub>.</sub>
 
 **Your wardrobe, styled.** A personal AI stylist that catalogues every piece you own,<br/>knows your build, your age, and today's weather — and shows you wearing the outfit<br/>*before you get dressed.*
 
-[**myfitcheck.vercel.app**](https://myfitcheck.vercel.app)
+[**hangermanagement.vercel.app**](https://hangermanagement.vercel.app)
 
 ![Next.js 16](https://img.shields.io/badge/Next.js%2016-111?logo=nextdotjs&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-111?logo=supabase&logoColor=3ECF8E)
@@ -12,7 +12,7 @@
 ![Vercel](https://img.shields.io/badge/Vercel-111?logo=vercel&logoColor=white)
 ![Tailwind 4](https://img.shields.io/badge/Tailwind%204-111?logo=tailwindcss&logoColor=38BDF8)
 
-<img src="docs/media/banner.jpg" alt="FitCheck wardrobe scene" width="920"/>
+<img src="docs/media/banner.jpg" alt="Hanger Management wardrobe scene" width="920"/>
 
 </div>
 
@@ -23,7 +23,7 @@
 <td width="33%" align="center">
   <img src="docs/media/mannequin.jpg" alt="Build your mannequin"/><br/><br/>
   <b>01 · Build your mannequin</b><br/>
-  <sub>Upload a selfie and a full-body shot. FitCheck builds a photoreal, identity-locked render of <i>you</i> — face, build, height, honest silhouette. Tune it with body-calibration dials.</sub>
+  <sub>Upload a selfie and a full-body shot. Hanger Management builds a photoreal, identity-locked render of <i>you</i> — face, build, height, honest silhouette. Tune it with body-calibration dials.</sub>
 </td>
 <td width="33%" align="center">
   <img src="docs/media/wardrobe.jpg" alt="Catalogue your closet"/><br/><br/>
@@ -60,7 +60,7 @@
 
 ### ⚠️ Shared Supabase project
 
-The Supabase free tier is at its 2-project limit, so FitCheck (repo name `stylecheck`) lives **inside the
+The Supabase free tier is at its 2-project limit, so Hanger Management (repo name `stylecheck`) lives **inside the
 shared project `zwwkcwdqsplztlmyfpyf` ("kbro-db1")** — the same project that backs
 snobaddy/opencourt/deadcode:
 

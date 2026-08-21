@@ -118,11 +118,11 @@ export default function Nav({
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="group select-none shrink-0">
-              <span className="font-serif text-[16px] uppercase tracking-[0.3em] text-ink sm:text-[18px]">
-                Fitcheck
+              <span className="font-serif text-[14px] uppercase tracking-[0.18em] text-ink sm:text-[16px]">
+                Hanger
               </span>
-              <span className="font-serif text-[18px] text-camel transition-colors group-hover:text-camel-deep sm:text-[20px]">
-                .
+              <span className="serif-accent text-[15px] text-camel transition-colors group-hover:text-camel-deep sm:text-[17px]">
+                {" "}management.
               </span>
             </Link>
             {switcher && switcher.people.length > 0 && (

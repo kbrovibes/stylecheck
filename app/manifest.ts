@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "FitCheck",
-    short_name: "FitCheck",
+    name: "Hanger Management",
+    short_name: "Hanger Management",
     description:
       "Your wardrobe, styled. Personal fit checks rendered on you.",
     start_url: "/",

@@ -55,7 +55,7 @@ export default function AllowlistCard() {
     <Card className="mt-8">
       <p className="eyebrow mb-1">Invites</p>
       <p className="mb-4 text-[13px] leading-relaxed text-ink-soft">
-        FitCheck is invite-only — only these emails can sign in.
+        Hanger Management is invite-only — only these emails can sign in.
       </p>
       <div className="flex gap-2">
         <input
