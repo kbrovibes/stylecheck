@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { renderOutfitRecord } from "@/lib/render";
@@ -31,6 +32,12 @@ export async function POST(
     return NextResponse.json({ error: "Fit not found" }, { status: 404 });
   }
   const outfit = outfitData as Outfit;
+  try {
+    await spendCredit(supabase, user, "image", goofy && !outfit.render_path ? 2 : 1);
+  } catch (e) {
+    const c = creditErrorResponse(e);
+    if (c) return NextResponse.json({ error: c.error }, { status: 429 });
+  }
   if (outfit.render_status === "pending") {
     return NextResponse.json(
       { error: "Already rendering this fit — give it a moment." },

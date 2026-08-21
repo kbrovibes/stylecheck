@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { geminiJson } from "@/lib/ai/gemini";
@@ -45,6 +46,18 @@ export async function POST(
     );
   }
 
+  try {
+    await spendCredit(supabase, user, "text");
+  } catch (e) {
+    const c = creditErrorResponse(e);
+    if (c) return NextResponse.json({ error: c.error }, { status: 429 });
+  }
+  try {
+    await spendCredit(supabase, user, "image");
+  } catch (e) {
+    const c = creditErrorResponse(e);
+    if (c) return NextResponse.json({ error: c.error }, { status: 429 });
+  }
   const settings = await getOrCreateSettings(supabase, user.id);
   const { data: liveData } = await supabase
     .from("sc_wardrobe_items")

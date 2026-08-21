@@ -119,7 +119,7 @@ export default function Nav({
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="group select-none shrink-0">
               <span className="font-serif text-[16px] uppercase tracking-[0.3em] text-ink sm:text-[18px]">
-                Stylecheck
+                Fitcheck
               </span>
               <span className="font-serif text-[18px] text-camel transition-colors group-hover:text-camel-deep sm:text-[20px]">
                 .

@@ -83,6 +83,7 @@ export function composeOutfitsPrompt(opts: {
   count: number;
   occasion?: string;
   dislikes?: string[];
+  mustFeature?: string[];
 }) {
   const { profile, items, weather, settings, count, occasion } = opts;
   const itemLines = items
@@ -106,6 +107,14 @@ PERSON: ${ageFromBirthYear(profile.birth_year) ? `${ageFromBirthYear(profile.bir
 ${weather ? `CURRENT WEATHER in ${weather.place}: ${weather.condition}, ${weather.temp_f}°F (high ${weather.high_f} / low ${weather.low_f}), season: ${weather.season}.` : "Weather unknown — cover multiple seasons."}
 ${occasion ? `FOCUS OCCASION: ${occasion}.` : "Cover a spread of occasions: work, casual, friends, date."}
 
+OCCASION DEFINITIONS — label strictly; a wrong label is worse than a missing occasion:
+- work: office-appropriate. Smart casual to business. Never shorts, flip-flops, or athletic wear.
+- casual: relaxed everyday — errands, coffee, weekends.
+- friends: social hangs — expressive, relaxed-cool, personality welcome.
+- date: elevated and intentional — best-fitting trousers/dark denim, a refined top, overshirt or blazer, clean leather shoes or crisp minimal sneakers. Never gym wear, never sloppy. If the wardrobe can't produce a genuinely date-worthy look, do NOT force one — label it differently.
+- active: ONLY real athletic pieces (performance tees, gym shorts, joggers, trainers). If the wardrobe has none, produce zero "active" fits.
+- lounge: home comfort — soft layers, easy fits.
+
 WARDROBE:
 ${itemLines}
 
@@ -118,7 +127,7 @@ CONSTRAINTS:
 - Prefer variety across the set — different anchors, not five variations of one look.
 ${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
 
-${opts.dislikes?.length ? `DISLIKED BY THE USER — they thumbed these combinations down; do not propose close variants of them:\n${opts.dislikes.map((d) => `- ${d}`).join("\n")}\n\n` : ""}SCORING — be a genuinely critical stylist, not a cheerleader:
+${opts.dislikes?.length ? `DISLIKED BY THE USER — they thumbed these combinations down; do not propose close variants of them:\n${opts.dislikes.map((d) => `- ${d}`).join("\n")}\n\n` : ""}${opts.mustFeature?.length ? `UNDERUSED PIECES — these item ids are in no current fit. EVERY outfit you produce must feature at least one of them, and across the set cover as many as possible:\n${opts.mustFeature.map((m) => `- ${m}`).join("\n")}\n\n` : ""}SCORING — be a genuinely critical stylist, not a cheerleader:
 - Calibrate: 5 = wearable but forgettable · 6 = good · 7 = strong · 8 = excellent, lookbook-worthy · 9 = near-perfect (rare: at most ONE per batch) · 10 = never given.
 - Use the full 4-9 range with decimals (e.g. 5.8, 7.2). Spread scores out — the batch average should land around 6.5, and no two outfits should share a score unless they are truly equal.
 - Penalize: safe/boring combinations, formality mismatches, muddy color stories, season conflicts, repetitive anchors across the batch.
@@ -338,4 +347,47 @@ Respond with JSON only:
   "explanation": string,                // refreshed 2-3 sentence "why this works" for the revived outfit
   "styling_notes": string
 }`;
+}
+
+export function composeExactPrompt(opts: {
+  profile: BodyProfile;
+  items: WardrobeItem[];
+  weather: WeatherInfo | null;
+}) {
+  const list = opts.items
+    .map((i) => `- id=${i.id} | ${i.category}${i.subcategory ? `/${i.subcategory}` : ""} | ${i.name ?? "unnamed"} | ${i.primary_color ?? i.colors.join(",")}`)
+    .join("\n");
+  return `You are a minimal fashion stylist. The user hand-picked EXACTLY these pieces and wants them styled as one outfit — use every listed item, add nothing, drop nothing:
+${list}
+
+${opts.weather ? `Current weather: ${opts.weather.condition}, ${opts.weather.temp_f}°F.` : ""}
+Person: ${ageFromBirthYear(opts.profile.birth_year) ? `${ageFromBirthYear(opts.profile.birth_year)} years old, ` : ""}height ${opts.profile.height_cm ?? "?"} cm, weight ${opts.profile.weight_kg ?? "?"} kg.
+
+Respond with JSON only:
+{
+  "title": string,                 // editorial name
+  "occasion": "work"|"casual"|"friends"|"date"|"active"|"lounge",
+  "seasons": ("spring"|"summer"|"fall"|"winter")[],
+  "explanation": string,           // honest 2-3 sentences: why it works — or what's off, if the combo is awkward
+  "styling_notes": string,
+  "score": number                  // honest 0-10; hand-picked combos can absolutely score low
+}`;
+}
+
+export function relabelOccasionsPrompt(
+  fits: { id: string; title: string | null; occasion: string | null; itemSummary: string }[]
+) {
+  return `You audit outfit occasion labels for a wardrobe app. For each fit below, decide the CORRECT occasion using these strict definitions:
+- work: office-appropriate, no shorts/flip-flops/athletic wear
+- casual: relaxed everyday
+- friends: social, expressive
+- date: elevated + intentional (refined top, best bottoms, clean shoes) — a plain tee + shorts is NOT a date fit
+- active: ONLY real athletic pieces (performance wear, trainers)
+- lounge: home comfort
+
+FITS:
+${fits.map((f) => `- id=${f.id} | current="${f.occasion}" | ${f.title} | pieces: ${f.itemSummary}`).join("\n")}
+
+Respond with JSON only — ONLY the fits whose label should change:
+{ "corrections": [ { "id": string, "occasion": "work"|"casual"|"friends"|"date"|"active"|"lounge" } ] }`;
 }

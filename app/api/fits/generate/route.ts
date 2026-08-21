@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { canManage, getActivePerson } from "@/lib/person";
@@ -17,6 +18,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  try {
+    await spendCredit(supabase, user, "text");
+  } catch (e) {
+    const c = creditErrorResponse(e);
+    if (c) return NextResponse.json({ error: c.error }, { status: 429 });
+  }
   try {
     const body = await request.json().catch(() => ({}));
     const count = Math.min(Math.max(Number(body.count) || 16, 1), 24);

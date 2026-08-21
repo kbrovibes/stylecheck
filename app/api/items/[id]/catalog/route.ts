@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { generateCatalogImage, reclassifyItem } from "@/lib/ai";
@@ -23,6 +24,12 @@ export async function POST(
   }
   const { supabase, user } = ctx;
 
+  try {
+    await spendCredit(supabase, user, "image");
+  } catch (e) {
+    const c = creditErrorResponse(e);
+    if (c) return NextResponse.json({ error: c.error }, { status: 429 });
+  }
   const { data } = await supabase
     .from("sc_wardrobe_items")
     .select("*")

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { after } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
@@ -35,6 +36,12 @@ export async function POST(request: Request) {
       { error: "You have view-only access to this profile." },
       { status: 403 }
     );
+  }
+  try {
+    await spendCredit(supabase, user, "text", (paths as string[]).length);
+  } catch (e) {
+    const c = creditErrorResponse(e);
+    if (c) return NextResponse.json({ error: c.error }, { status: 429 });
   }
   const settings = await getOrCreateSettings(supabase, user.id);
 
@@ -136,6 +143,14 @@ export async function POST(request: Request) {
     .flatMap((r) => r.items ?? [])
     .map((i) => i.id)
     .slice(0, 12);
+  if (createdItemIds.length) {
+    try {
+      await spendCredit(supabase, user, "image", createdItemIds.length);
+    } catch {
+      // over budget: skip auto product shots; manual button still available
+      createdItemIds.length = 0;
+    }
+  }
   if (createdItemIds.length) {
     after(async () => {
       for (const itemId of createdItemIds) {

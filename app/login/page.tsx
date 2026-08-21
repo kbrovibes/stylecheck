@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 const SLIDES = [
   {
     img: "/intro/banner.jpg",
-    eyebrow: "Stylecheck",
+    eyebrow: "Fitcheck",
     title: "Your wardrobe,",
     accent: "styled.",
     body: "A personal stylist that knows every piece you own — and shows you wearing it before you get dressed.",
@@ -17,7 +17,7 @@ const SLIDES = [
     eyebrow: "Step 01",
     title: "Build your",
     accent: "mannequin",
-    body: "Upload a few photos — a selfie, a full-body shot. StyleCheck builds a photoreal render of you: your face, your build, your proportions. Honest, not idealized.",
+    body: "Upload a few photos — a selfie, a full-body shot. FitCheck builds a photoreal render of you: your face, your build, your proportions. Honest, not idealized.",
   },
   {
     img: "/intro/wardrobe.jpg",
@@ -73,7 +73,7 @@ export default function LoginPage() {
       {/* Top bar */}
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
         <p className="select-none">
-          <span className="font-serif text-[16px] uppercase tracking-[0.3em]">Stylecheck</span>
+          <span className="font-serif text-[16px] uppercase tracking-[0.3em]">Fitcheck</span>
           <span className="font-serif text-[18px] text-camel">.</span>
         </p>
         <button

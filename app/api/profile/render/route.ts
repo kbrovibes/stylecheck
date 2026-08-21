@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { canManage, getActivePerson } from "@/lib/person";
@@ -48,6 +49,12 @@ export async function POST(request: Request) {
       { error: "You have view-only access to this profile." },
       { status: 403 }
     );
+  }
+  try {
+    await spendCredit(supabase, user, "image");
+  } catch (e) {
+    const c = creditErrorResponse(e);
+    if (c) return NextResponse.json({ error: c.error }, { status: 429 });
   }
   const settings = await getOrCreateSettings(supabase, user.id);
   const adjustments =

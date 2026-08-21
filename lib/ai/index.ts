@@ -63,6 +63,7 @@ export async function composeOutfits(
     count: number;
     occasion?: string;
     dislikes?: string[];
+    mustFeature?: string[];
   }
 ): Promise<OutfitPlan[]> {
   const prompt = composeOutfitsPrompt({ ...opts, settings });

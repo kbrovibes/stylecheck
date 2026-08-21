@@ -17,12 +17,12 @@ const instrument = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "StyleCheck",
+  title: "FitCheck",
   description: "Your wardrobe, styled. Personal fit checks and outfit rendering.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "StyleCheck",
+    title: "FitCheck",
   },
 };
 
