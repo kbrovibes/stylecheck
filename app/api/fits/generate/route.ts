@@ -80,6 +80,29 @@ export async function POST(request: Request) {
       }
     }
 
+    // focus: "unused" — force fits around pieces not yet styled into any fit.
+    let mustFeature: string[] | undefined;
+    let effectiveCount = count;
+    if (body.focus === "unused") {
+      const { data: activeOutfits } = await supabase
+        .from("sc_outfits")
+        .select("item_ids")
+        .eq("person_id", person.id)
+        .eq("deleted", false);
+      const used = new Set(
+        (activeOutfits ?? []).flatMap((o) => o.item_ids as string[])
+      );
+      const unused = items.filter((i) => !used.has(i.id)).map((i) => i.id);
+      if (!unused.length) {
+        return NextResponse.json(
+          { error: "Every piece is already styled into at least one fit." },
+          { status: 400 }
+        );
+      }
+      mustFeature = unused;
+      effectiveCount = Math.min(Math.ceil(unused.length / 2) + 2, 16);
+    }
+
     const { data: dislikedData } = await supabase
       .from("sc_outfits")
       .select("title, item_ids")
@@ -94,9 +117,10 @@ export async function POST(request: Request) {
       profile: person,
       items,
       weather,
-      count,
+      count: effectiveCount,
       occasion,
       dislikes,
+      mustFeature,
     });
     if (!plans.length) {
       return NextResponse.json(

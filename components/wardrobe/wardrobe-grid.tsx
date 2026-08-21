@@ -1,0 +1,192 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui";
+
+export interface GridItem {
+  id: string;
+  name: string;
+  sub: string;
+  url: string | null;
+  pending: boolean;
+  benched: boolean;
+}
+
+/**
+ * Wardrobe product grid with a selection mode: pick pieces, then have the
+ * stylist compose and render them as one fit (exactly those items).
+ */
+export default function WardrobeGrid({
+  items,
+  selectable = true,
+}: {
+  items: GridItem[];
+  selectable?: boolean;
+}) {
+  const router = useRouter();
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggle(id: string) {
+    setError(null);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < 8) next.add(id);
+      return next;
+    });
+  }
+
+  function reset() {
+    setSelecting(false);
+    setSelected(new Set());
+    setError(null);
+  }
+
+  async function styleThese() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/fits/compose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_ids: [...selected] }),
+    }).catch(() => null);
+    const json = (await res?.json().catch(() => ({}))) ?? {};
+    setBusy(false);
+    if (res?.ok && json.id) {
+      reset();
+      router.push(`/fits/${json.id}`);
+    } else {
+      setError(json.error ?? "Styling failed — try again.");
+    }
+  }
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <p className="eyebrow !mb-0">
+          {items.length} piece{items.length === 1 ? "" : "s"}
+        </p>
+        {selectable && (
+        <button
+          onClick={() => (selecting ? reset() : setSelecting(true))}
+          className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+            selecting
+              ? "bg-ink text-ivory"
+              : "border hairline bg-paper text-ink-soft hover:bg-ivory"
+          }`}
+        >
+          {selecting ? "Done" : "Select"}
+        </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
+        {items.map((item) => {
+          const isSel = selected.has(item.id);
+          const media = (
+            <>
+              <div
+                className={`relative aspect-square overflow-hidden rounded-xl border bg-paper transition-all ${
+                  isSel ? "border-camel ring-2 ring-camel" : "hairline"
+                }`}
+              >
+                {item.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.url}
+                    alt={item.name}
+                    className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${
+                      item.benched ? "opacity-40 grayscale" : ""
+                    }`}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <span className="serif-accent text-ink-faint">no image</span>
+                  </div>
+                )}
+                {item.pending && (
+                  <div className="absolute left-2 top-2">
+                    <Badge tone="neutral">original shot</Badge>
+                  </div>
+                )}
+                {item.benched && (
+                  <div className="absolute right-2 top-2">
+                    <Badge tone="ink">benched</Badge>
+                  </div>
+                )}
+                {selecting && (
+                  <span
+                    className={`absolute bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-full text-[13px] transition-all ${
+                      isSel
+                        ? "bg-camel text-ivory"
+                        : "border border-ivory/70 bg-ink/30 text-transparent backdrop-blur"
+                    }`}
+                  >
+                    ✓
+                  </span>
+                )}
+              </div>
+              <div className="mt-3">
+                <p className="truncate text-[13px] font-medium tracking-tight">
+                  {item.name}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] uppercase tracking-widest text-ink-faint">
+                  {item.sub}
+                </p>
+              </div>
+            </>
+          );
+          return selecting ? (
+            <button
+              key={item.id}
+              onClick={() => toggle(item.id)}
+              disabled={item.benched}
+              className={`group text-left ${item.benched ? "cursor-not-allowed opacity-60" : ""}`}
+            >
+              {media}
+            </button>
+          ) : (
+            <Link key={item.id} href={`/wardrobe/${item.id}`} className="group">
+              {media}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Floating action bar */}
+      {selecting && selected.size > 0 && (
+        <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 md:bottom-6">
+          <div className="sheet-up flex max-w-md flex-1 flex-col gap-1.5 rounded-3xl bg-ink px-5 py-3.5 shadow-2xl shadow-ink/30">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[13px] text-ivory/80">
+                {selected.size} selected
+              </span>
+              <span className="flex items-center gap-3">
+                <button
+                  onClick={reset}
+                  disabled={busy}
+                  className="text-[13px] text-ivory/60 transition-colors hover:text-ivory"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={styleThese}
+                  disabled={busy || selected.size < 2}
+                  className="rounded-full bg-ivory px-4 py-2 text-[13px] font-medium text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {busy ? "Styling & rendering… ~1 min" : "Style these"}
+                </button>
+              </span>
+            </div>
+            {error && <p className="text-[12px] text-blush">{error}</p>}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

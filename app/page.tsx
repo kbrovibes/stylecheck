@@ -5,7 +5,7 @@ import { getWeather } from "@/lib/weather";
 import { imgUrl, imgUrls } from "@/lib/storage";
 import { computeWardrobeHash } from "@/lib/scene";
 import { computeCoverage } from "@/lib/coverage";
-import { Card, EmptyState, Eyebrow, Badge } from "@/components/ui";
+import { Eyebrow, Badge } from "@/components/ui";
 import WardrobeHero, { type HeroGroup } from "@/components/home/wardrobe-hero";
 import type { Category, Outfit, UserPhoto, WardrobeItem, WeatherInfo } from "@/lib/types";
 
@@ -46,8 +46,7 @@ export default async function TodayPage() {
         .select("*")
         .eq("person_id", person.id)
         .eq("deleted", false)
-        .order("created_at", { ascending: false })
-        .limit(4),
+        .order("created_at", { ascending: false }),
     ]);
 
   const items = (itemsData ?? []) as WardrobeItem[];
@@ -96,7 +95,51 @@ export default async function TodayPage() {
   }
 
   const outfits = (fits ?? []) as Outfit[];
-  const renderPaths = outfits.map((o) => o.render_path).filter(Boolean) as string[];
+
+  // --- Today's picks: 3 rendered fits, rotated daily, occasion-diverse ---
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const daySeed = `${person.id}:${new Date().toISOString().slice(0, 10)}`;
+  const seedHash = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100003;
+    return h;
+  };
+  const candidates = outfits
+    .filter(
+      (o) =>
+        o.render_path &&
+        o.reaction !== -1 &&
+        o.item_ids.every((iid) => itemById.has(iid))
+    )
+    .map((o) => ({
+      o,
+      pts:
+        (Number(o.score) || 5) +
+        (weather && o.seasons?.includes(weather.season) ? 2 : 0) +
+        (o.reaction === 1 ? 2 : 0) +
+        (seedHash(daySeed + o.id) % 100) / 50, // daily rotation jitter
+    }))
+    .sort((a, b) => b.pts - a.pts);
+  const picked: Outfit[] = [];
+  const take = (pred: (o: Outfit) => boolean) => {
+    const hit = candidates.find(
+      (c) => pred(c.o) && !picked.some((p) => p.id === c.o.id)
+    );
+    if (hit) picked.push(hit.o);
+  };
+  take((o) => o.occasion === "work");
+  take((o) => o.occasion === "casual" || o.occasion === "friends" || o.occasion === "date");
+  take(() => true);
+  while (picked.length < 3) {
+    const next = candidates.find((c) => !picked.some((p) => p.id === c.o.id));
+    if (!next) break;
+    picked.push(next.o);
+  }
+
+  const renderPaths = [
+    ...outfits.map((o) => o.render_path),
+    ...picked.map((o) => o.render_path),
+  ].filter(Boolean) as string[];
   const urls = imgUrls(renderPaths);
 
   const firstName = person.name.split(" ")[0] || "there";
@@ -126,6 +169,59 @@ export default async function TodayPage() {
           {greeting}, <span className="serif-accent text-camel">{firstName}</span>
         </h1>
       </div>
+
+      {/* Today's picks */}
+      {picked.length > 0 && (
+        <section className="mb-10">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-xl font-semibold tracking-tight">
+              Today&apos;s <span className="serif-accent text-camel">picks</span>
+            </h2>
+            <p className="text-[12px] text-ink-faint">
+              {weather
+                ? `Styled for ${weather.temp_f}° and ${weather.condition.toLowerCase()}`
+                : "Rotates every day"}
+              {" · "}
+              <Link href="/fits" className="hover:text-ink">
+                all fits →
+              </Link>
+            </p>
+          </div>
+          <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0">
+            {picked.map((o, i) => (
+              <Link
+                key={o.id}
+                href={`/fits/${o.id}`}
+                className="group w-[76vw] shrink-0 snap-center overflow-hidden rounded-2xl border hairline bg-paper transition-shadow hover:shadow-lg hover:shadow-ink/5 sm:w-auto"
+              >
+                <div className="relative aspect-[3/4] overflow-hidden bg-ivory">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={urls[o.render_path!]}
+                    alt={o.title ?? "Fit"}
+                    fetchPriority={i === 0 ? "high" : "auto"}
+                    className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                  <span className="absolute left-3 top-3 rounded-full bg-ink/55 px-2.5 py-1 font-serif text-[12px] italic text-ivory backdrop-blur">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate text-[13px] font-medium">{o.title}</p>
+                    {o.occasion && <Badge tone="camel">{o.occasion}</Badge>}
+                  </div>
+                  {o.explanation && (
+                    <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-ink-faint">
+                      {o.explanation}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {itemCount > 0 && (
         <WardrobeHero
@@ -250,56 +346,6 @@ export default async function TodayPage() {
         </div>
       )}
 
-      {/* Latest fits */}
-      <div className="mt-14">
-        <div className="mb-6 flex items-baseline justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">
-            Latest <span className="serif-accent text-camel">fits</span>
-          </h2>
-          <Link href="/fits" className="text-[13px] text-ink-faint hover:text-ink">
-            View all →
-          </Link>
-        </div>
-        {outfits.length === 0 ? (
-          <EmptyState
-            title="No fits yet."
-            body="Upload your wardrobe and photos, then let your stylist put looks together — rendered on you."
-            ctaHref="/upload"
-            ctaLabel="Start uploading"
-          />
-        ) : (
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
-            {outfits.map((o) => (
-              <Link
-                key={o.id}
-                href={`/fits/${o.id}`}
-                className="group overflow-hidden rounded-2xl border hairline bg-paper transition-shadow hover:shadow-lg hover:shadow-ink/5"
-              >
-                <div className="aspect-[3/4] overflow-hidden bg-ivory">
-                  {o.render_path && urls[o.render_path] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={urls[o.render_path]}
-                      alt={o.title ?? "Outfit"}
-                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="serif-accent text-ink-faint">unrendered</span>
-                    </div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <p className="truncate text-[13px] font-medium">{o.title}</p>
-                  <p className="mt-0.5 text-[11px] uppercase tracking-widest text-ink-faint">
-                    {o.occasion}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

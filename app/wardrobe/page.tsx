@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { imgUrls } from "@/lib/storage";
-import { getActivePerson } from "@/lib/person";
-import { Badge, EmptyState, PageTitle } from "@/components/ui";
+import { canManage, getActivePerson } from "@/lib/person";
+import { EmptyState, PageTitle } from "@/components/ui";
+import WardrobeGrid, { type GridItem } from "@/components/wardrobe/wardrobe-grid";
+import StyleUnusedButton from "@/components/wardrobe/style-unused-button";
 import { CATEGORY_LABELS, type Category, type WardrobeItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -18,20 +20,34 @@ export default async function WardrobePage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { person } = await getActivePerson(supabase, user);
+  const { person, role } = await getActivePerson(supabase, user);
 
-  const { data } = await supabase
-    .from("sc_wardrobe_items")
-    .select("*")
-    .eq("person_id", person.id)
-    .eq("deleted", false)
-    .order("created_at", { ascending: false });
+  const [{ data }, { data: activeOutfits }] = await Promise.all([
+    supabase
+      .from("sc_wardrobe_items")
+      .select("*")
+      .eq("person_id", person.id)
+      .eq("deleted", false)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("sc_outfits")
+      .select("item_ids")
+      .eq("person_id", person.id)
+      .eq("deleted", false),
+  ]);
 
   const allItems = (data ?? []) as WardrobeItem[];
   const counts = allItems.reduce<Record<string, number>>((acc, i) => {
     acc[i.category] = (acc[i.category] ?? 0) + 1;
     return acc;
   }, {});
+
+  const usedIds = new Set(
+    (activeOutfits ?? []).flatMap((o) => o.item_ids as string[])
+  );
+  const unusedCount = allItems.filter(
+    (i) => i.enabled && !usedIds.has(i.id)
+  ).length;
 
   const items = category
     ? allItems.filter((i) => i.category === category)
@@ -40,15 +56,29 @@ export default async function WardrobePage({
   const paths = items.map((i) => i.catalog_image_path ?? i.original_image_path);
   const urls = imgUrls(paths);
 
+  const gridItems: GridItem[] = items.map((item) => ({
+    id: item.id,
+    name: item.name ?? item.subcategory ?? CATEGORY_LABELS[item.category],
+    sub: `${item.subcategory ?? item.category}${item.primary_color ? ` · ${item.primary_color}` : ""}`,
+    url: urls[item.catalog_image_path ?? item.original_image_path] ?? null,
+    pending: item.catalog_source === "pending",
+    benched: !item.enabled,
+  }));
+
+  const editable = canManage(role);
+
   return (
     <div className="fade-up">
       <PageTitle eyebrow="The catalogue" title="Your" accent="wardrobe">
-        <Link
-          href="/upload"
-          className="rounded-full bg-ink px-5 py-2.5 text-[13px] font-medium text-ivory transition-opacity hover:opacity-85"
-        >
-          Add pieces
-        </Link>
+        {editable && unusedCount > 0 && <StyleUnusedButton count={unusedCount} />}
+        {editable && (
+          <Link
+            href="/upload"
+            className="rounded-full bg-ink px-5 py-2.5 text-[13px] font-medium text-ivory transition-opacity hover:opacity-85"
+          >
+            Add pieces
+          </Link>
+        )}
       </PageTitle>
 
       {allItems.length === 0 ? (
@@ -89,57 +119,7 @@ export default async function WardrobePage({
               ))}
           </div>
 
-          <p className="eyebrow mb-6">
-            {items.length} piece{items.length === 1 ? "" : "s"}
-            {category ? ` — ${CATEGORY_LABELS[category as Category] ?? category}` : ""}
-          </p>
-
-          {/* Product grid */}
-          <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
-            {items.map((item) => {
-              const path = item.catalog_image_path ?? item.original_image_path;
-              const url = urls[path];
-              return (
-                <Link key={item.id} href={`/wardrobe/${item.id}`} className="group">
-                  <div className="relative aspect-square overflow-hidden rounded-xl border hairline bg-paper">
-                    {url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={url}
-                        alt={item.name ?? "Wardrobe item"}
-                        className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${
-                          !item.enabled ? "opacity-40 grayscale" : ""
-                        }`}
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <span className="serif-accent text-ink-faint">no image</span>
-                      </div>
-                    )}
-                    {item.catalog_source === "pending" && (
-                      <div className="absolute left-2 top-2">
-                        <Badge tone="neutral">original shot</Badge>
-                      </div>
-                    )}
-                    {!item.enabled && (
-                      <div className="absolute right-2 top-2">
-                        <Badge tone="ink">benched</Badge>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3">
-                    <p className="truncate text-[13px] font-medium tracking-tight">
-                      {item.name ?? item.subcategory ?? CATEGORY_LABELS[item.category]}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] uppercase tracking-widest text-ink-faint">
-                      {item.subcategory ?? item.category}
-                      {item.primary_color ? ` · ${item.primary_color}` : ""}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <WardrobeGrid items={gridItems} selectable={editable} />
         </>
       )}
     </div>

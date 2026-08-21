@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { imgUrls } from "@/lib/storage";
 import { Badge, Eyebrow } from "@/components/ui";
+import type { Outfit } from "@/lib/types";
 import { CATEGORY_LABELS, type WardrobeItem } from "@/lib/types";
 import ImageToggle from "@/components/wardrobe/image-toggle";
 import ItemActions from "@/components/wardrobe/item-actions";
@@ -33,8 +34,20 @@ export default async function ItemPage({
     ? await supabase.rpc("sc_can_manage_person", { pid: item.person_id })
     : { data: item.user_id === user.id };
 
-  const urls = imgUrls([item.catalog_image_path, item.original_image_path].filter(Boolean) as string[]
-  );
+  const { data: fitsData } = await supabase
+    .from("sc_outfits")
+    .select("*")
+    .eq("deleted", false)
+    .contains("item_ids", [item.id])
+    .order("created_at", { ascending: false })
+    .limit(12);
+  const fits = (fitsData ?? []) as Outfit[];
+
+  const urls = imgUrls([
+    item.catalog_image_path,
+    item.original_image_path,
+    ...fits.map((f) => f.render_path),
+  ].filter(Boolean) as string[]);
   const catalogUrl = item.catalog_image_path ? urls[item.catalog_image_path] ?? null : null;
   const originalUrl = urls[item.original_image_path] ?? null;
 
@@ -145,6 +158,49 @@ export default async function ItemPage({
           </p>
         </div>
       </div>
+
+      {/* Worn in these fits */}
+      <section className="mt-14">
+        <h2 className="mb-5 text-xl font-semibold tracking-tight">
+          Worn in these <span className="serif-accent text-camel">fits</span>
+        </h2>
+        {fits.length === 0 ? (
+          <p className="text-sm text-ink-faint">
+            Not styled into any fit yet — select it with a few other pieces on
+            the wardrobe page and hit{" "}
+            <span className="serif-accent text-camel-deep">Style these</span>.
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+            {fits.map((f) => (
+              <Link key={f.id} href={`/fits/${f.id}`} className="group">
+                <div className="aspect-[3/4] overflow-hidden rounded-xl border hairline bg-ivory">
+                  {f.render_path && urls[f.render_path] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={urls[f.render_path]}
+                      alt={f.title ?? "Fit"}
+                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <span className="serif-accent text-[12px] text-ink-faint">
+                        unrendered
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2 truncate text-[12px] font-medium">{f.title}</p>
+                {f.occasion && (
+                  <p className="text-[10px] uppercase tracking-widest text-ink-faint">
+                    {f.occasion}
+                  </p>
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

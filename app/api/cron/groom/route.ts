@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { composeOutfits } from "@/lib/ai";
 import { geminiJson } from "@/lib/ai/gemini";
-import { reviveOutfitPrompt } from "@/lib/ai/prompts";
+import { relabelOccasionsPrompt, reviveOutfitPrompt } from "@/lib/ai/prompts";
 import { getWeather } from "@/lib/weather";
-import type { Outfit, Person, Settings, WardrobeItem } from "@/lib/types";
+import type { Occasion, Outfit, Person, Settings, WardrobeItem } from "@/lib/types";
+
+const OCCASIONS = ["work", "casual", "friends", "date", "active", "lounge"] as const;
 
 export const maxDuration = 300;
 
@@ -32,6 +34,7 @@ export async function GET(request: Request) {
   }
   const url = new URL(request.url);
   const target = Math.min(Math.max(Number(url.searchParams.get("target")) || 30, 4), 60);
+  const audit = url.searchParams.get("audit") === "1";
 
   const admin = createAdminClient();
   const { data: peopleData } = await admin
@@ -118,19 +121,20 @@ export async function GET(request: Request) {
         }
       }
 
+      const weather =
+        person.lat && person.lon && person.place_name
+          ? await getWeather({
+              lat: person.lat,
+              lon: person.lon,
+              place: person.place_name,
+            }).catch(() => null)
+          : null;
+
       // Backfill fresh fits for people with a real wardrobe.
       let composed = 0;
       const activeCount = outfits.length - retired;
       if (liveItems.length >= 6 && activeCount < target) {
         const need = Math.min(target - activeCount, 16);
-        const weather =
-          person.lat && person.lon && person.place_name
-            ? await getWeather({
-                lat: person.lat,
-                lon: person.lon,
-                place: person.place_name,
-              }).catch(() => null)
-            : null;
         const plans = await composeOutfits(settings, {
           profile: person,
           items: liveItems,
@@ -155,7 +159,107 @@ export async function GET(request: Request) {
           composed++;
         }
       }
-      summary[person.id] = `revived ${revived}, retired ${retired}, composed ${composed}`;
+      let auditNote = "";
+      if (audit) {
+        // --- Relabel pass: correct occasion labels in one batched call ---
+        const { data: freshData } = await admin
+          .from("sc_outfits")
+          .select("*")
+          .eq("person_id", person.id)
+          .eq("deleted", false);
+        const fresh = (freshData ?? []) as Outfit[];
+        const itemName = new Map(
+          liveItems.map((i) => [i.id, `${i.name ?? i.subcategory ?? i.category} (${i.category})`])
+        );
+        let relabeled = 0;
+        if (fresh.length) {
+          try {
+            const res = await geminiJson<{
+              corrections: { id: string; occasion: string }[];
+            }>({
+              model: settings.text_model,
+              prompt: relabelOccasionsPrompt(
+                fresh.map((f) => ({
+                  id: f.id,
+                  title: f.title,
+                  occasion: f.occasion,
+                  itemSummary: f.item_ids
+                    .map((iid) => itemName.get(iid))
+                    .filter(Boolean)
+                    .join(", "),
+                }))
+              ),
+            });
+            const fitIds = new Set(fresh.map((f) => f.id));
+            for (const c of res.corrections ?? []) {
+              if (!fitIds.has(c.id)) continue;
+              if (!(OCCASIONS as readonly string[]).includes(c.occasion)) continue;
+              await admin
+                .from("sc_outfits")
+                .update({ occasion: c.occasion })
+                .eq("id", c.id);
+              const local = fresh.find((f) => f.id === c.id);
+              if (local) local.occasion = c.occasion as Occasion;
+              relabeled++;
+            }
+          } catch {
+            // relabel is best-effort; gap-fill still runs on current labels
+          }
+        }
+
+        // --- Occasion gap-fill: ensure ≥3 fits per core occasion ---
+        const athleticCapable =
+          liveItems.filter(
+            (i) =>
+              i.formality === "athletic" ||
+              i.style_tags.some((t) => /athletic|sporty/i.test(t))
+          ).length >= 3;
+        const gapOccasions: Occasion[] = ["work", "casual", "friends", "date"];
+        if (athleticCapable) gapOccasions.push("active");
+
+        const added: string[] = [];
+        let gapBudget = 12;
+        for (const occ of gapOccasions) {
+          if (gapBudget <= 0 || liveItems.length < 6) break;
+          const have = fresh.filter((f) => f.occasion === occ).length;
+          if (have >= 3) continue;
+          const want = Math.min(3 - have + 1, gapBudget);
+          try {
+            const plans = await composeOutfits(settings, {
+              profile: person,
+              items: liveItems,
+              weather,
+              count: want,
+              occasion: occ,
+            });
+            let inserted = 0;
+            for (const plan of plans) {
+              await admin.from("sc_outfits").insert({
+                user_id: person.owner_id,
+                person_id: person.id,
+                title: plan.title,
+                item_ids: plan.item_ids,
+                occasion: plan.occasion,
+                seasons: plan.seasons,
+                explanation: plan.explanation,
+                styling_notes: plan.styling_notes,
+                weather_note: plan.weather_note,
+                variations: plan.variations,
+                score: plan.score,
+                render_status: "none",
+              });
+              inserted++;
+              gapBudget--;
+            }
+            if (inserted) added.push(`+${inserted} ${occ}`);
+          } catch {
+            // one occasion failing shouldn't sink the audit
+          }
+        }
+        auditNote = `, audit: ${relabeled} relabeled${added.length ? ", " + added.join(", ") : ""}`;
+      }
+
+      summary[person.id] = `revived ${revived}, retired ${retired}, composed ${composed}${auditNote}`;
     } catch (e) {
       summary[person.id] = `error: ${(e as Error).message.slice(0, 120)}`;
     }
