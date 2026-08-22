@@ -84,6 +84,12 @@ export default async function FitDetailPage({
   const liveIds = new Set(items.map((i) => i.id));
   const deadCount = outfit.item_ids.filter((iid) => !liveIds.has(iid)).length;
   const renders = (rendersData ?? []) as RenderRecord[];
+  const gptClassic = renders.find(
+    (r) => r.subject_type === "outfit" && r.model.startsWith("gpt")
+  )?.storage_path;
+  const gptGoofy = renders.find(
+    (r) => r.subject_type === "outfit_goofy" && r.model.startsWith("gpt")
+  )?.storage_path;
 
   const paths = new Set<string>();
   if (outfit.render_path) paths.add(outfit.render_path);
@@ -91,6 +97,26 @@ export default async function FitDetailPage({
   items.forEach((i) => paths.add(i.catalog_image_path ?? i.original_image_path));
   renders.forEach((r) => paths.add(r.storage_path));
   const urls = imgUrls([...paths]);
+
+  // Carousel: OpenAI takes lead, then Gemini; goofy takes appended in goofy mode.
+  const slides = [
+    gptClassic && urls[gptClassic]
+      ? { url: urls[gptClassic], label: "classic · gpt" }
+      : null,
+    outfit.render_path && urls[outfit.render_path]
+      ? { url: urls[outfit.render_path], label: "classic" }
+      : null,
+    ...(goofyMode
+      ? [
+          gptGoofy && urls[gptGoofy]
+            ? { url: urls[gptGoofy], label: "goofy · gpt" }
+            : null,
+          outfit.goofy_render_path && urls[outfit.goofy_render_path]
+            ? { url: urls[outfit.goofy_render_path], label: "goofy" }
+            : null,
+        ]
+      : []),
+  ].filter(Boolean) as { url: string; label: string }[];
 
   const variations = ((outfit.variations ?? []) as OutfitVariation[]).map(
     (v, index): VariationDisplay => ({
@@ -122,34 +148,8 @@ export default async function FitDetailPage({
         <div>
           <div className="overflow-hidden rounded-2xl border hairline bg-paper">
             <div className="bg-ivory">
-              {goofyMode && outfit.goofy_render_path && outfit.render_path ? (
-                <RenderCarousel
-                  slides={
-                    goofyFirst(outfit.id)
-                      ? [
-                          { url: urls[outfit.goofy_render_path], label: "goofy" },
-                          { url: urls[outfit.render_path], label: "classic" },
-                        ]
-                      : [
-                          { url: urls[outfit.render_path], label: "classic" },
-                          { url: urls[outfit.goofy_render_path], label: "goofy" },
-                        ]
-                  }
-                  zoomable
-                />
-              ) : displayPath && urls[displayPath] ? (
-                <RenderCarousel
-                  slides={[
-                    {
-                      url: urls[displayPath],
-                      label:
-                        goofyMode && displayPath === outfit.goofy_render_path
-                          ? "goofy"
-                          : (outfit.title ?? "Fit render"),
-                    },
-                  ]}
-                  zoomable
-                />
+              {slides.length > 0 ? (
+                <RenderCarousel slides={slides} zoomable />
               ) : (
                 <div className="flex aspect-[3/4] flex-col items-center justify-center gap-2 p-8 text-center">
                   <p className="serif-accent text-2xl text-ink-soft">

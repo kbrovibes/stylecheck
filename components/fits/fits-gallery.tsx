@@ -15,6 +15,7 @@ export interface FitCard {
   score: number | null;
   classicUrl: string | null;
   goofyUrl: string | null;
+  gptUrl: string | null;
   goofyLead: boolean; // stable random: which take leads in goofy mode
   degraded: boolean; // references pieces no longer in the wardrobe
   reaction: 1 | -1 | null;
@@ -67,6 +68,7 @@ const VIEWS: { key: View; label: string; icon: React.ReactNode }[] = [
 // In goofy mode, alternate leads down the list so goofy and classic takes are
 // evenly spread across the layout.
 function leadUrl(c: FitCard, goofyMode: boolean, index: number) {
+  if (c.gptUrl) return c.gptUrl; // OpenAI takes lead when present
   if (goofyMode && c.goofyUrl && c.classicUrl)
     return index % 2 === 0 ? c.goofyUrl : c.classicUrl;
   if (goofyMode && c.goofyUrl) return c.goofyUrl;
@@ -173,10 +175,10 @@ export default function FitsGallery({
                     piece removed
                   </span>
                 )}
-                {goofyMode && c.goofyUrl && c.classicUrl ? (
-                  <RenderCarousel
-                    slides={
-                      index % 2 === 0
+                {(() => {
+                  const base =
+                    goofyMode && c.goofyUrl && c.classicUrl
+                      ? index % 2 === 0
                         ? [
                             { url: c.goofyUrl, label: "goofy" },
                             { url: c.classicUrl, label: "classic" },
@@ -185,7 +187,34 @@ export default function FitsGallery({
                             { url: c.classicUrl, label: "classic" },
                             { url: c.goofyUrl, label: "goofy" },
                           ]
-                    }
+                      : c.classicUrl
+                        ? [{ url: c.classicUrl, label: "classic" }]
+                        : [];
+                  const slides = c.gptUrl
+                    ? [{ url: c.gptUrl, label: "classic · gpt" }, ...base]
+                    : base;
+                  return slides.length > 1;
+                })() ? (
+                  <RenderCarousel
+                    slides={(() => {
+                      const base =
+                        goofyMode && c.goofyUrl && c.classicUrl
+                          ? index % 2 === 0
+                            ? [
+                                { url: c.goofyUrl, label: "goofy" },
+                                { url: c.classicUrl, label: "classic" },
+                              ]
+                            : [
+                                { url: c.classicUrl, label: "classic" },
+                                { url: c.goofyUrl, label: "goofy" },
+                              ]
+                          : c.classicUrl
+                            ? [{ url: c.classicUrl, label: "classic" }]
+                            : [];
+                      return c.gptUrl
+                        ? [{ url: c.gptUrl, label: "classic · gpt" }, ...base]
+                        : base;
+                    })()}
                     imgClass="object-cover object-top"
                   />
                 ) : leadUrl(c, goofyMode, index) ? (

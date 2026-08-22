@@ -32,8 +32,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const goofyBatch = url.searchParams.get("goofy") === "1";
   const catalogBatch = url.searchParams.get("catalog") === "1";
+  const altBatch = url.searchParams.get("alt") === "1";
   const before = url.searchParams.get("before");
-  if (!goofyBatch && !catalogBatch && (!before || Number.isNaN(Date.parse(before)))) {
+  if (!goofyBatch && !catalogBatch && !altBatch && (!before || Number.isNaN(Date.parse(before)))) {
     return NextResponse.json({ error: "before=<ISO timestamp> required" }, { status: 400 });
   }
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 3, 1), 8);
@@ -117,7 +118,29 @@ export async function GET(request: Request) {
     if (r.subject_id && !latest.has(r.subject_id)) latest.set(r.subject_id, r.created_at);
   }
 
-  const queue = goofyBatch
+  // alt=1: gpt-image-1 comparison classics for owners with alt_render_async on
+  let altQueue: Outfit[] = [];
+  if (altBatch) {
+    const { data: altOwners } = await admin
+      .from("sc_settings")
+      .select("user_id")
+      .eq("alt_render_async", true);
+    const ownerSet = new Set((altOwners ?? []).map((o) => o.user_id));
+    const { data: gptRenders } = await admin
+      .from("sc_renders")
+      .select("subject_id")
+      .eq("subject_type", "outfit")
+      .like("model", "gpt%")
+      .eq("deleted", false);
+    const hasGpt = new Set((gptRenders ?? []).map((r) => r.subject_id));
+    altQueue = outfits.filter(
+      (o) => o.render_path && ownerSet.has(o.user_id) && !hasGpt.has(o.id)
+    );
+  }
+
+  const queue = altBatch
+    ? altQueue
+    : goofyBatch
     ? outfits.filter((o) => !o.goofy_render_path)
     : outfits.filter((o) => {
         const last = latest.get(o.id);
