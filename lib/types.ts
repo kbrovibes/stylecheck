@@ -55,6 +55,7 @@ export interface Person {
   base_render_path: string | null;
   avatar_path: string | null;
   identity_notes: string | null;
+  style_notes: string | null;
   render_adjustments: RenderAdjustments | null;
   wardrobe_scene_path: string | null;
   wardrobe_scene_hash: string | null;
@@ -76,10 +77,11 @@ export interface PersonShare {
 }
 
 // The body-relevant subset prompts/rendering need — satisfied by Person and Profile.
+// style_notes is optional so account-level Profile (which has none) still satisfies it.
 export type BodyProfile = Pick<
   Person,
   "height_cm" | "weight_kg" | "birth_year" | "render_adjustments"
->;
+> & { style_notes?: string | null };
 
 export interface Profile {
   id: string;
@@ -167,9 +169,26 @@ export interface Outfit {
   render_model: string | null;
   score: number | null;
   reaction: 1 | -1 | null;
+  dislike_reasons: string[] | null;
+  dislike_note: string | null;
   deleted: boolean;
   created_at: string;
 }
+
+/**
+ * Standard reasons offered when a fit is thumbed down. Stored verbatim on the
+ * outfit and fed back to the stylist. The render-quality reason is deliberately
+ * excluded from styling feedback — it faults the image, not the outfit.
+ */
+export const DISLIKE_REASONS = [
+  "Not my style",
+  "Colors don't work",
+  "Wrong for the occasion",
+  "Pieces don't go together",
+  "Doesn't suit my build",
+  "Render looks off — not the outfit",
+] as const;
+export const RENDER_ISSUE_REASON: string = DISLIKE_REASONS[5];
 
 export interface RenderRecord {
   id: string;

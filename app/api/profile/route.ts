@@ -34,6 +34,10 @@ export async function PATCH(request: Request) {
     update.height_cm = body.height_cm ? Math.round(Number(body.height_cm)) : null;
   if ("weight_kg" in body)
     update.weight_kg = body.weight_kg ? Number(body.weight_kg) : null;
+  if ("style_notes" in body) {
+    const notes = (body.style_notes ?? "").toString().trim().slice(0, 1000);
+    update.style_notes = notes || null;
+  }
 
   let warning: string | null = null;
   if ("zip_code" in body) {

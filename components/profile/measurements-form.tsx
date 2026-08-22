@@ -33,6 +33,7 @@ export default function MeasurementsForm({
   const [heightCm, setHeightCm] = useState(person.height_cm?.toString() ?? "");
   const [weightKg, setWeightKg] = useState(person.weight_kg?.toString() ?? "");
   const [zip, setZip] = useState(person.zip_code ?? "");
+  const [styleNotes, setStyleNotes] = useState(person.style_notes ?? "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; warn: boolean } | null>(null);
 
@@ -48,6 +49,7 @@ export default function MeasurementsForm({
         height_cm: heightCm ? Number(heightCm) : null,
         weight_kg: weightKg ? Number(weightKg) : null,
         zip_code: zip,
+        style_notes: styleNotes,
       }),
     });
     const json = await res.json();
@@ -146,6 +148,22 @@ export default function MeasurementsForm({
           disabled={readOnly}
           onChange={(e) => setZip(e.target.value)}
           placeholder="94105"
+        />
+      </div>
+      <div>
+        <label className="eyebrow mb-1.5 block">
+          Style rules{" "}
+          <span className="normal-case tracking-normal text-camel">
+            the stylist obeys these
+          </span>
+        </label>
+        <textarea
+          className={`${inputCls} min-h-[88px] resize-y leading-relaxed`}
+          value={styleNotes}
+          disabled={readOnly}
+          maxLength={1000}
+          onChange={(e) => setStyleNotes(e.target.value)}
+          placeholder="e.g. I never tuck in t-shirts · no skinny jeans · sleeves always rolled once"
         />
       </div>
       <p className="text-[12px] leading-relaxed text-ink-faint">

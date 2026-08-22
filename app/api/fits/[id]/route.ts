@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
-import type { Outfit } from "@/lib/types";
+import { DISLIKE_REASONS, type Outfit } from "@/lib/types";
 
 /** Soft-delete a fit (renders and history are kept). */
 export async function DELETE(
@@ -38,7 +38,11 @@ export async function DELETE(
   return NextResponse.json({ ok: true });
 }
 
-/** Set or clear a thumbs reaction on a fit. */
+/**
+ * Set or clear a thumbs reaction on a fit. A thumbs-down may carry feedback:
+ * standard reasons + a free-text note, stored on the outfit and fed back to
+ * the stylist on future compositions. Anything but a thumbs-down clears them.
+ */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -54,6 +58,15 @@ export async function PATCH(
   const body = await request.json().catch(() => ({}));
   const reaction =
     body.reaction === 1 || body.reaction === -1 ? body.reaction : null;
+  const valid = new Set<string>(DISLIKE_REASONS);
+  const reasons =
+    reaction === -1 && Array.isArray(body.reasons)
+      ? [...new Set(body.reasons.filter((r: unknown) => typeof r === "string" && valid.has(r)))]
+      : [];
+  const note =
+    reaction === -1 && typeof body.note === "string"
+      ? body.note.trim().slice(0, 300)
+      : "";
 
   const { data } = await supabase
     .from("sc_outfits")
@@ -71,6 +84,13 @@ export async function PATCH(
       { status: 403 }
     );
   }
-  await supabase.from("sc_outfits").update({ reaction }).eq("id", id);
+  await supabase
+    .from("sc_outfits")
+    .update({
+      reaction,
+      dislike_reasons: reasons.length ? reasons : null,
+      dislike_note: note || null,
+    })
+    .eq("id", id);
   return NextResponse.json({ ok: true, reaction });
 }

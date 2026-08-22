@@ -6,7 +6,7 @@ import { canManage, getActivePerson } from "@/lib/person";
 import { composeOutfits } from "@/lib/ai";
 import { getWeather } from "@/lib/weather";
 import { blockingGaps, computeCoverage } from "@/lib/coverage";
-import type { UserPhoto, WardrobeItem, WeatherInfo } from "@/lib/types";
+import { RENDER_ISSUE_REASON, type UserPhoto, type WardrobeItem, type WeatherInfo } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -105,14 +105,37 @@ export async function POST(request: Request) {
 
     const { data: dislikedData } = await supabase
       .from("sc_outfits")
-      .select("title, item_ids")
+      .select("title, item_ids, dislike_reasons, dislike_note")
       .eq("person_id", person.id)
       .eq("reaction", -1)
       .limit(15);
     const nameById = new Map(items.map((i) => [i.id, i.name ?? i.subcategory ?? i.category]));
-    const dislikes = (dislikedData ?? []).map(
-      (d) => `${d.title}: ${(d.item_ids as string[]).map((iid) => nameById.get(iid)).filter(Boolean).join(" + ")}`
-    );
+    const dislikes = (dislikedData ?? [])
+      .filter((d) => {
+        // A complaint about the image alone doesn't condemn the combination.
+        const reasons = (d.dislike_reasons ?? []) as string[];
+        return !(
+          reasons.length > 0 &&
+          reasons.every((r) => r === RENDER_ISSUE_REASON) &&
+          !d.dislike_note
+        );
+      })
+      .map((d) => {
+        const pieces = (d.item_ids as string[])
+          .map((iid) => nameById.get(iid))
+          .filter(Boolean)
+          .join(" + ");
+        const reasons = ((d.dislike_reasons ?? []) as string[]).filter(
+          (r) => r !== RENDER_ISSUE_REASON
+        );
+        const why = [
+          reasons.length ? `reasons: ${reasons.join("; ")}` : "",
+          d.dislike_note ? `their words: "${d.dislike_note}"` : "",
+        ]
+          .filter(Boolean)
+          .join(" — ");
+        return `${d.title}: ${pieces}${why ? ` (${why})` : ""}`;
+      });
     const plans = await composeOutfits(settings, {
       profile: person,
       items,

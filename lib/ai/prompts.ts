@@ -44,6 +44,15 @@ function bodyCalibration(adj: RenderAdjustments | null | undefined): string {
 ${lines.map((l) => `- ${l}`).join("\n")}`;
 }
 
+/** The user's standing style rules, as a hard-constraint prompt block. */
+function styleRulesBlock(profile: BodyProfile, kind: "stylist" | "render"): string {
+  const rules = profile.style_notes?.trim();
+  if (!rules) return "";
+  return kind === "stylist"
+    ? `\nUSER'S STANDING STYLE RULES — written by the user themselves; hard constraints on outfit choice, styling notes, and how garments are worn. Never contradict them:\n${rules}\n`
+    : `\n- WEARING RULES from the user (obey exactly — they override any generic styling instinct, e.g. tuck/untuck, cuff, layering): ${rules}`;
+}
+
 export const CLASSIFY_PROMPT = `You are a fashion cataloguer for a personal wardrobe app.
 Look at this image, detect the person (if any) AND every distinct wardrobe item visible — including items being WORN by a person. Respond with JSON only, matching this schema:
 
@@ -125,9 +134,9 @@ CONSTRAINTS:
 - Match formality to occasion: no shorts/flip-flops for work; no athletic wear on date night unless styled deliberately.
 - Consider color harmony, proportion for their build, season, and the current weather.
 - Prefer variety across the set — different anchors, not five variations of one look.
-${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
+${styleRulesBlock(profile, "stylist")}${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
 
-${opts.dislikes?.length ? `DISLIKED BY THE USER — they thumbed these combinations down; do not propose close variants of them:\n${opts.dislikes.map((d) => `- ${d}`).join("\n")}\n\n` : ""}${opts.mustFeature?.length ? `UNDERUSED PIECES — these item ids are in no current fit. EVERY outfit you produce must feature at least one of them, and across the set cover as many as possible:\n${opts.mustFeature.map((m) => `- ${m}`).join("\n")}\n\n` : ""}SCORING — be a genuinely critical stylist, not a cheerleader:
+${opts.dislikes?.length ? `DISLIKED BY THE USER — they thumbed these down (their stated reasons included where given). Do not propose close variants, and do not repeat the specific mistakes they called out:\n${opts.dislikes.map((d) => `- ${d}`).join("\n")}\n\n` : ""}${opts.mustFeature?.length ? `UNDERUSED PIECES — these item ids are in no current fit. EVERY outfit you produce must feature at least one of them, and across the set cover as many as possible:\n${opts.mustFeature.map((m) => `- ${m}`).join("\n")}\n\n` : ""}SCORING — be a genuinely critical stylist, not a cheerleader:
 - Calibrate: 5 = wearable but forgettable · 6 = good · 7 = strong · 8 = excellent, lookbook-worthy · 9 = near-perfect (rare: at most ONE per batch) · 10 = never given.
 - Use the full 4-9 range with decimals (e.g. 5.8, 7.2). Spread scores out — the batch average should land around 6.5, and no two outfits should share a score unless they are truly equal.
 - Penalize: safe/boring combinations, formality mismatches, muddy color stories, season conflicts, repetitive anchors across the batch.
@@ -213,7 +222,7 @@ ${opts.goofy ? `\n${goofyPoseInstruction()}\n` : ""}
 
 REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
 - Each garment must match its reference image faithfully: same color, pattern, fabric and details. Do not redesign or substitute.
-- Fit the garments naturally to this person's build (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg).${ageFromBirthYear(profile.birth_year) ? `\n- The person is ${ageFromBirthYear(profile.birth_year)} years old: style the garments (fit, tuck, drape) the way a stylist would for that age — and never de-age or age the face.` : ""}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
+- Fit the garments naturally to this person's build (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg).${ageFromBirthYear(profile.birth_year) ? `\n- The person is ${ageFromBirthYear(profile.birth_year)} years old: style the garments (fit, tuck, drape) the way a stylist would for that age — and never de-age or age the face.` : ""}${styleRulesBlock(profile, "render")}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 - Full frame, head to shoes visible, photorealistic, 3:4 portrait.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
 }
@@ -252,7 +261,7 @@ Preserve the subject's bone structure, eye shape and spacing, nose, lips, jawlin
 ${opts.faceFixNotes?.length ? `\nPREVIOUS ATTEMPT REJECTED — an identity review found these mismatches against the real photographs. Correct every one:\n${opts.faceFixNotes.map((m) => `- ${m}`).join("\n")}\n` : ""}
 CLOTHING:
 Replace only the clothing. Each garment must match its reference image faithfully — same color, pattern, fabric and details. Do not redesign or substitute garments, and do not add accessories, jewelry, bags, text, logos, or watermarks.
-Fit the garments naturally to this person's ${opts.editBase ? "existing pose and body geometry" : "build"} with realistic fabric drape, folds, and shadows (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg — honest silhouette).${ageFromBirthYear(profile.birth_year) ? ` The person is ${ageFromBirthYear(profile.birth_year)} years old — style for that age, and never de-age or age the face.` : ""}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
+Fit the garments naturally to this person's ${opts.editBase ? "existing pose and body geometry" : "build"} with realistic fabric drape, folds, and shadows (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg — honest silhouette).${ageFromBirthYear(profile.birth_year) ? ` The person is ${ageFromBirthYear(profile.birth_year)} years old — style for that age, and never de-age or age the face.` : ""}${styleRulesBlock(profile, "render")}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 
 SCENE:
 ${opts.goofy ? goofyPoseInstruction() : opts.editBase ? "Keep the pose, camera angle, framing, lighting, and the ivory studio background exactly the same as Image 1. Match lighting, shadows, and color temperature so the new clothing integrates photorealistically." : "Photorealistic full-body studio fashion shot: standing, relaxed natural pose, camera at chest height, soft ivory seamless backdrop, soft even lighting, subtle shadow."}
@@ -284,7 +293,7 @@ TASK: Re-photograph this same person in a photorealistic full-body studio fashio
 
 REQUIREMENTS:
 - The garments must match the item images faithfully — same colors, patterns, and details; do not redesign them.
-- Body proportions must match their real build: height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg. Render an honest, realistic silhouette for that height/weight.${ageFromBirthYear(profile.birth_year) ? ` The person is ${ageFromBirthYear(profile.birth_year)} years old — render true to age, never younger or older.` : ""}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
+- Body proportions must match their real build: height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg. Render an honest, realistic silhouette for that height/weight.${ageFromBirthYear(profile.birth_year) ? ` The person is ${ageFromBirthYear(profile.birth_year)} years old — render true to age, never younger or older.` : ""}${styleRulesBlock(profile, "render")}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 - Full frame, head to shoes fully visible, standing, relaxed natural pose, camera at chest height, natural expression consistent with the reference photos.
 - Clean minimal studio background: soft ivory seamless backdrop, soft even lighting, subtle shadow.
 - Editorial catalogue quality, 3:4 portrait aspect.
@@ -416,6 +425,7 @@ ${list}
 
 ${opts.weather ? `Current weather: ${opts.weather.condition}, ${opts.weather.temp_f}°F.` : ""}
 Person: ${ageFromBirthYear(opts.profile.birth_year) ? `${ageFromBirthYear(opts.profile.birth_year)} years old, ` : ""}height ${opts.profile.height_cm ?? "?"} cm, weight ${opts.profile.weight_kg ?? "?"} kg.
+${styleRulesBlock(opts.profile, "stylist")}
 
 Respond with JSON only:
 {
