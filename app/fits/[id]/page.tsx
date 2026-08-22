@@ -101,15 +101,15 @@ export default async function FitDetailPage({
   // Carousel: OpenAI takes lead, then Gemini; goofy takes appended in goofy mode.
   const slides = [
     gptClassic && urls[gptClassic]
-      ? { url: urls[gptClassic], label: "classic · gpt" }
+      ? { url: urls[gptClassic], label: showModelBadge ? "classic · gpt-image-1" : "classic · gpt" }
       : null,
     outfit.render_path && urls[outfit.render_path]
-      ? { url: urls[outfit.render_path], label: "classic" }
+      ? { url: urls[outfit.render_path], label: showModelBadge ? `classic · ${(outfit.render_model ?? "gemini").replace("-preview", "")}` : "classic" }
       : null,
     ...(goofyMode
       ? [
           gptGoofy && urls[gptGoofy]
-            ? { url: urls[gptGoofy], label: "goofy · gpt" }
+            ? { url: urls[gptGoofy], label: showModelBadge ? "goofy · gpt-image-1" : "goofy · gpt" }
             : null,
           outfit.goofy_render_path && urls[outfit.goofy_render_path]
             ? { url: urls[outfit.goofy_render_path], label: "goofy" }
@@ -149,7 +149,7 @@ export default async function FitDetailPage({
           <div className="overflow-hidden rounded-2xl border hairline bg-paper">
             <div className="bg-ivory">
               {slides.length > 0 ? (
-                <RenderCarousel slides={slides} zoomable />
+                <RenderCarousel slides={slides} zoomable showLabels={showModelBadge} />
               ) : (
                 <div className="flex aspect-[3/4] flex-col items-center justify-center gap-2 p-8 text-center">
                   <p className="serif-accent text-2xl text-ink-soft">

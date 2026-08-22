@@ -66,6 +66,7 @@ export default function RenderPanel({
   hasPhotos,
   savedAdjustments,
   readOnly = false,
+  showModelBadge = false,
 }: {
   currentUrl: string | null;
   currentPath: string | null;
@@ -74,6 +75,7 @@ export default function RenderPanel({
   hasPhotos: boolean;
   savedAdjustments: RenderAdjustments | null;
   readOnly?: boolean;
+  showModelBadge?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"generate" | "preview" | "save" | null>(null);
@@ -322,6 +324,9 @@ export default function RenderPanel({
                     )}
                     <div className="mt-1.5 space-y-1">
                       <Badge>{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</Badge>
+                      {showModelBadge && (
+                        <Badge tone="camel">{r.model.replace(/-preview$/, "")}</Badge>
+                      )}
                       {!readOnly && r.storage_path !== currentPath && (
                         <button
                           onClick={async () => {

@@ -34,7 +34,9 @@ export default async function FitsPage({
   } = await supabase.auth.getUser();
   if (!user) return null;
   const { person } = await getActivePerson(supabase, user);
-  const goofyMode = (await getOrCreateSettings(supabase, user.id)).goofy_mode;
+  const gallerySettings = await getOrCreateSettings(supabase, user.id);
+  const goofyMode = gallerySettings.goofy_mode;
+  const showModelBadge = gallerySettings.show_model_badge;
 
   let query = supabase
     .from("sc_outfits")
@@ -178,7 +180,7 @@ export default async function FitsPage({
           }
         />
       ) : (
-        <FitsGallery cards={cards} goofyMode={goofyMode} />
+        <FitsGallery cards={cards} goofyMode={goofyMode} showBadges={showModelBadge} />
       )}
     </div>
   );

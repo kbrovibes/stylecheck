@@ -78,9 +78,11 @@ function leadUrl(c: FitCard, goofyMode: boolean, index: number) {
 export default function FitsGallery({
   cards,
   goofyMode: goofyModeInitial,
+  showBadges = false,
 }: {
   cards: FitCard[];
   goofyMode: boolean;
+  showBadges?: boolean;
 }) {
   const [view, setView] = useState<View>("grid");
   const [goofyMode, setGoofyMode] = useState(goofyModeInitial);
@@ -216,6 +218,7 @@ export default function FitsGallery({
                         : base;
                     })()}
                     imgClass="object-cover object-top"
+                    showLabels={showBadges}
                   />
                 ) : leadUrl(c, goofyMode, index) ? (
                   // eslint-disable-next-line @next/next/no-img-element

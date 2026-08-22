@@ -18,12 +18,14 @@ export default function RenderCarousel({
   zoomable = false,
   imgClass = "object-contain",
   rounded = "",
+  showLabels = false,
 }: {
   slides: CarouselSlide[];
   aspect?: string;
   zoomable?: boolean;
   imgClass?: string;
   rounded?: string;
+  showLabels?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
@@ -70,6 +72,11 @@ export default function RenderCarousel({
         ))}
       </div>
 
+      {showLabels && slides[idx]?.label && (
+        <span className="pointer-events-none absolute left-2 top-2 z-10 rounded-full bg-ink/55 px-2.5 py-1 text-[10px] font-medium tracking-wide text-ivory backdrop-blur">
+          {slides[idx].label}
+        </span>
+      )}
       {slides.length > 1 && (
         <>
           {/* Desktop arrows — mice can't swipe */}

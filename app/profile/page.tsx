@@ -121,6 +121,7 @@ export default async function ProfilePage() {
             historyUrls={renderUrls}
             hasPhotos={photos.length > 0}
             savedAdjustments={person.render_adjustments}
+            showModelBadge={pageSettings.show_model_badge}
             readOnly={readOnly}
           />
         </Card>
