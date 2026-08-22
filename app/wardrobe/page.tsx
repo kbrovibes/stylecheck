@@ -128,14 +128,6 @@ export default async function WardrobePage({
   return (
     <div className="fade-up">
       <PageTitle eyebrow="The catalogue" title="Your" accent="wardrobe">
-        {editable && (
-          <Link
-            href="/wardrobe?build=1"
-            className="rounded-full border border-camel/50 bg-camel/10 px-5 py-2.5 text-[13px] font-medium text-camel-deep transition-colors hover:bg-camel/20"
-          >
-            Build my own fit
-          </Link>
-        )}
         {editable && unusedCount > 0 && <StyleUnusedButton count={unusedCount} />}
         {editable && (
           <Link
@@ -156,6 +148,17 @@ export default async function WardrobePage({
         />
       ) : (
         <>
+          {editable && (
+            <div className="mb-10 flex justify-center">
+              <Link
+                href="/wardrobe?build=1"
+                className="rounded-full bg-camel px-8 py-3 text-[14px] font-medium tracking-tight text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-xl hover:shadow-camel/40"
+              >
+                Build my own fit
+              </Link>
+            </div>
+          )}
+
           {/* Category chips */}
           <div className="mb-8 flex flex-wrap items-center gap-2">
             <Link

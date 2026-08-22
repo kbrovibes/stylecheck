@@ -175,17 +175,10 @@ export default function WardrobeGrid({
         <p className="eyebrow !mb-0">
           {allItems.length} piece{allItems.length === 1 ? "" : "s"}
         </p>
-        {selectable && (
-        <button
-          onClick={() => (selecting ? reset() : setSelecting(true))}
-          className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
-            selecting
-              ? "border hairline bg-paper text-ink-soft hover:bg-ivory"
-              : "border border-camel/40 bg-camel/10 text-camel-deep hover:bg-camel/20"
-          }`}
-        >
-          {selecting ? "Cancel" : "Build my own fit"}
-        </button>
+        {selecting && (
+          <p className="text-[13px] text-camel-deep">
+            Tap pieces to add them to your fit
+          </p>
         )}
       </div>
 
