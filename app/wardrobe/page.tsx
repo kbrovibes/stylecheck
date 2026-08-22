@@ -31,12 +31,21 @@ export default async function WardrobePage({
       .order("created_at", { ascending: false }),
     supabase
       .from("sc_outfits")
-      .select("item_ids")
+      .select("item_ids, render_path")
       .eq("person_id", person.id)
       .eq("deleted", false),
   ]);
 
-  const allItems = (data ?? []) as WardrobeItem[];
+  // Popularity = how many rendered fits feature the piece; most-worn first.
+  const fitCounts = new Map<string, number>();
+  for (const o of activeOutfits ?? []) {
+    if (!o.render_path) continue;
+    for (const iid of o.item_ids as string[])
+      fitCounts.set(iid, (fitCounts.get(iid) ?? 0) + 1);
+  }
+  const allItems = ((data ?? []) as WardrobeItem[]).sort(
+    (a, b) => (fitCounts.get(b.id) ?? 0) - (fitCounts.get(a.id) ?? 0)
+  );
   const counts = allItems.reduce<Record<string, number>>((acc, i) => {
     acc[i.category] = (acc[i.category] ?? 0) + 1;
     return acc;
@@ -79,7 +88,11 @@ export default async function WardrobePage({
   const gridItems: GridItem[] = items.map((item) => ({
     id: item.id,
     name: item.name ?? item.subcategory ?? CATEGORY_LABELS[item.category],
-    sub: `${item.subcategory ?? item.category}${item.primary_color ? ` · ${item.primary_color}` : ""}`,
+    sub: `${item.subcategory ?? item.category}${item.primary_color ? ` · ${item.primary_color}` : ""}${
+      fitCounts.get(item.id)
+        ? ` · ${fitCounts.get(item.id)} fit${fitCounts.get(item.id) === 1 ? "" : "s"}`
+        : ""
+    }`,
     url: urls[item.catalog_image_path ?? item.original_image_path] ?? null,
     pending: item.catalog_source === "pending",
     benched: !item.enabled,

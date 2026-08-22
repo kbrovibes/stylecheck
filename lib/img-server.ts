@@ -21,11 +21,71 @@ export async function toJpegBase64(
  * ends up with identical scale and padding, like a real retail catalogue.
  */
 export async function normalizeProductShot(base64: string): Promise<{ data: string; mimeType: string }> {
-  const src = sharp(Buffer.from(base64, "base64"));
-  const trimmed = await src
+  const flat = await sharp(Buffer.from(base64, "base64"))
     .flatten({ background: "#ffffff" })
-    .trim({ threshold: 45 })
     .toBuffer();
+  // sharp's trim() gives up on the faint background gradients AI shots often
+  // have, leaving the garment tiny in the frame. Find the content bounding box
+  // ourselves: scan greyscale pixels darker than near-white, ignoring speckle.
+  const { data, info } = await sharp(flat)
+    .greyscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width, height } = info;
+  const THRESH = 225; // strong content only — faint bg gradients stay invisible
+  const rowCounts = new Uint32Array(height);
+  const colCounts = new Uint32Array(width);
+  let total = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[y * width + x] < THRESH) {
+        rowCounts[y]++;
+        colCounts[x]++;
+        total++;
+      }
+    }
+  }
+  // Percentile bbox: clip a sliver of dark mass per side so a stray smudge or
+  // compression artifact can't stretch the box — the garment defines it.
+  const CLIP = Math.max(1, Math.round(total * 0.004));
+  const edge = (counts: Uint32Array, from: "start" | "end") => {
+    let acc = 0;
+    if (from === "start") {
+      for (let i = 0; i < counts.length; i++) {
+        acc += counts[i];
+        if (acc > CLIP) return i;
+      }
+      return counts.length - 1;
+    }
+    for (let i = counts.length - 1; i >= 0; i--) {
+      acc += counts[i];
+      if (acc > CLIP) return i;
+    }
+    return 0;
+  };
+  const minY = edge(rowCounts, "start");
+  const maxY = edge(rowCounts, "end");
+  const minX = edge(colCounts, "start");
+  const maxX = edge(colCounts, "end");
+
+  let trimmed: Buffer;
+  if (maxX - minX < width * 0.04 || maxY - minY < height * 0.04) {
+    // Detection found (almost) nothing — likely a white-on-white garment.
+    // Fall back to sharp's trim rather than cropping to noise.
+    trimmed = await sharp(flat).trim({ threshold: 45 }).toBuffer();
+  } else {
+    const pad = Math.round(Math.max(maxX - minX, maxY - minY) * 0.02);
+    const left = Math.max(0, minX - pad);
+    const top = Math.max(0, minY - pad);
+    trimmed = await sharp(flat)
+      .extract({
+        left,
+        top,
+        width: Math.min(width, maxX + pad + 1) - left,
+        height: Math.min(height, maxY + pad + 1) - top,
+      })
+      .toBuffer();
+  }
   const CANVAS = 1000;
   const BOX = Math.round(CANVAS * 0.9); // garment fills ~90% — just a little breathing room
   const inner = await sharp(trimmed)
