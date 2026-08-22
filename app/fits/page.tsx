@@ -109,6 +109,12 @@ export default async function FitsPage({
   return (
     <div className="fade-up">
       <PageTitle eyebrow="The lookbook" title="Your" accent="fits">
+        <Link
+          href="/wardrobe?build=1"
+          className="rounded-full bg-camel px-5 py-2.5 text-[13px] font-medium text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-camel/40"
+        >
+          Build my own fit
+        </Link>
         <GenerateButton />
       </PageTitle>
 
