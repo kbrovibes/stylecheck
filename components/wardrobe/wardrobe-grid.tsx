@@ -9,6 +9,7 @@ export interface GridItem {
   id: string;
   name: string;
   sub: string;
+  category: string;
   url: string | null;
   pending: boolean;
   benched: boolean;
@@ -70,6 +71,14 @@ export default function WardrobeGrid({
   const allItems = sections?.length
     ? sections.flatMap((sec) => sec.items)
     : items;
+
+  // A fit needs a top and a bottom (or a one-piece) — the rest is optional.
+  const selectedCats = new Set(
+    allItems.filter((i) => selected.has(i.id)).map((i) => i.category)
+  );
+  const wearable =
+    selectedCats.has("full_body") ||
+    (selectedCats.has("top") && selectedCats.has("bottom"));
 
   const renderGrid = (list: GridItem[]) => (
       <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
@@ -155,13 +164,13 @@ export default function WardrobeGrid({
         {selectable && (
         <button
           onClick={() => (selecting ? reset() : setSelecting(true))}
-          className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+          className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
             selecting
-              ? "bg-ink text-ivory"
-              : "border hairline bg-paper text-ink-soft hover:bg-ivory"
+              ? "border hairline bg-paper text-ink-soft hover:bg-ivory"
+              : "border border-camel/40 bg-camel/10 text-camel-deep hover:bg-camel/20"
           }`}
         >
-          {selecting ? "Done" : "Select"}
+          {selecting ? "Cancel" : "Build my own fit"}
         </button>
         )}
       </div>
@@ -185,7 +194,7 @@ export default function WardrobeGrid({
       )}
 
       {/* Floating action bar */}
-      {selecting && selected.size > 0 && (
+      {selecting && (
         <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 md:bottom-6">
           <div className="sheet-up flex max-w-md flex-1 flex-col gap-1.5 rounded-3xl bg-ink px-5 py-3.5 shadow-2xl shadow-ink/30">
             <div className="flex items-center justify-between gap-4">
@@ -202,13 +211,18 @@ export default function WardrobeGrid({
                 </button>
                 <button
                   onClick={styleThese}
-                  disabled={busy || selected.size < 2}
+                  disabled={busy || !wearable}
                   className="rounded-full bg-ivory px-4 py-2 text-[13px] font-medium text-ink transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
-                  {busy ? "Styling & rendering… ~1 min" : "Style these"}
+                  {busy ? "Styling & rendering… ~1 min" : "Render my fit"}
                 </button>
               </span>
             </div>
+            {!wearable && !busy && (
+              <p className="text-[12px] text-ivory/60">
+                Pick at least a top and a bottom — everything else is optional.
+              </p>
+            )}
             {error && <p className="text-[12px] text-blush">{error}</p>}
           </div>
         </div>

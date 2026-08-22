@@ -15,7 +15,6 @@ export interface FitCard {
   score: number | null;
   classicUrl: string | null;
   goofyUrl: string | null;
-  gptUrl: string | null;
   goofyLead: boolean; // stable random: which take leads in goofy mode
   degraded: boolean; // references pieces no longer in the wardrobe
   reaction: 1 | -1 | null;
@@ -68,21 +67,30 @@ const VIEWS: { key: View; label: string; icon: React.ReactNode }[] = [
 // In goofy mode, alternate leads down the list so goofy and classic takes are
 // evenly spread across the layout.
 function leadUrl(c: FitCard, goofyMode: boolean, index: number) {
-  if (c.gptUrl) return c.gptUrl; // OpenAI takes lead when present
   if (goofyMode && c.goofyUrl && c.classicUrl)
     return index % 2 === 0 ? c.goofyUrl : c.classicUrl;
   if (goofyMode && c.goofyUrl) return c.goofyUrl;
   return c.classicUrl || (goofyMode ? c.goofyUrl : null);
 }
 
+// Carousel slides for a card — unlabeled; badges live on the detail page only.
+function cardSlides(c: FitCard, goofyMode: boolean, index: number) {
+  if (goofyMode && c.goofyUrl && c.classicUrl) {
+    const slides = [
+      { url: c.goofyUrl, label: "" },
+      { url: c.classicUrl, label: "" },
+    ];
+    return index % 2 === 0 ? slides : slides.reverse();
+  }
+  return c.classicUrl ? [{ url: c.classicUrl, label: "" }] : [];
+}
+
 export default function FitsGallery({
   cards,
   goofyMode: goofyModeInitial,
-  showBadges = false,
 }: {
   cards: FitCard[];
   goofyMode: boolean;
-  showBadges?: boolean;
 }) {
   const [view, setView] = useState<View>("grid");
   const [goofyMode, setGoofyMode] = useState(goofyModeInitial);
@@ -177,48 +185,11 @@ export default function FitsGallery({
                     piece removed
                   </span>
                 )}
-                {(() => {
-                  const base =
-                    goofyMode && c.goofyUrl && c.classicUrl
-                      ? index % 2 === 0
-                        ? [
-                            { url: c.goofyUrl, label: "goofy" },
-                            { url: c.classicUrl, label: "classic" },
-                          ]
-                        : [
-                            { url: c.classicUrl, label: "classic" },
-                            { url: c.goofyUrl, label: "goofy" },
-                          ]
-                      : c.classicUrl
-                        ? [{ url: c.classicUrl, label: "classic" }]
-                        : [];
-                  const slides = c.gptUrl
-                    ? [{ url: c.gptUrl, label: "classic · gpt" }, ...base]
-                    : base;
-                  return slides.length > 1;
-                })() ? (
+                {cardSlides(c, goofyMode, index).length > 1 ? (
                   <RenderCarousel
-                    slides={(() => {
-                      const base =
-                        goofyMode && c.goofyUrl && c.classicUrl
-                          ? index % 2 === 0
-                            ? [
-                                { url: c.goofyUrl, label: "goofy" },
-                                { url: c.classicUrl, label: "classic" },
-                              ]
-                            : [
-                                { url: c.classicUrl, label: "classic" },
-                                { url: c.goofyUrl, label: "goofy" },
-                              ]
-                          : c.classicUrl
-                            ? [{ url: c.classicUrl, label: "classic" }]
-                            : [];
-                      return c.gptUrl
-                        ? [{ url: c.gptUrl, label: "classic · gpt" }, ...base]
-                        : base;
-                    })()}
+                    slides={cardSlides(c, goofyMode, index)}
                     imgClass="object-cover object-top"
-                    showLabels={showBadges}
+                    showLabels={false}
                   />
                 ) : leadUrl(c, goofyMode, index) ? (
                   // eslint-disable-next-line @next/next/no-img-element

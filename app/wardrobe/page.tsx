@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { imgUrls } from "@/lib/storage";
 import { canManage, getActivePerson } from "@/lib/person";
-import { EmptyState, PageTitle } from "@/components/ui";
+import { Card, EmptyState, PageTitle } from "@/components/ui";
 import WardrobeGrid, { type GridItem } from "@/components/wardrobe/wardrobe-grid";
 import StyleUnusedButton from "@/components/wardrobe/style-unused-button";
 import { CATEGORY_LABELS, type Category, type WardrobeItem } from "@/lib/types";
@@ -35,6 +35,15 @@ export default async function WardrobePage({
       .eq("person_id", person.id)
       .eq("deleted", false),
   ]);
+  const { data: myFitsData } = await supabase
+    .from("sc_outfits")
+    .select("id, title, render_path, created_at")
+    .eq("person_id", person.id)
+    .eq("deleted", false)
+    .eq("manual", true)
+    .order("created_at", { ascending: false })
+    .limit(24);
+  const myFits = myFitsData ?? [];
 
   // How many rendered fits feature each piece — shown as a caption.
   const fitCounts = new Map<string, number>();
@@ -89,6 +98,7 @@ export default async function WardrobePage({
       : allItems;
 
   const paths = items.map((i) => i.catalog_image_path ?? i.original_image_path);
+  for (const f of myFits) if (f.render_path) paths.push(f.render_path);
   const urls = imgUrls(paths);
 
   const gridItems: GridItem[] = items.map((item) => ({
@@ -99,6 +109,7 @@ export default async function WardrobePage({
         ? ` · ${fitCounts.get(item.id)} fit${fitCounts.get(item.id) === 1 ? "" : "s"}`
         : ""
     }`,
+    category: item.category,
     url: urls[item.catalog_image_path ?? item.original_image_path] ?? null,
     pending: item.catalog_source === "pending",
     benched: !item.enabled,
@@ -195,6 +206,44 @@ export default async function WardrobePage({
               }))}
               selectable={editable}
             />
+          )}
+
+          {/* Hand-picked experiments live here, out of the main fits gallery */}
+          {myFits.length > 0 && (
+            <Card className="mt-14">
+              <p className="eyebrow mb-4">My own fits — looks you styled yourself</p>
+              <div className="flex gap-4 overflow-x-auto pb-2">
+                {myFits.map((f) => (
+                  <Link key={f.id} href={`/fits/${f.id}`} className="group w-36 shrink-0">
+                    <div className="aspect-[3/4] overflow-hidden rounded-xl bg-ivory">
+                      {f.render_path && urls[f.render_path] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={urls[f.render_path]}
+                          alt={f.title ?? "Hand-picked fit"}
+                          className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center p-3 text-center">
+                          <span className="serif-accent text-[13px] text-ink-faint">
+                            rendering…
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-2 truncate text-[12px] font-medium group-hover:text-camel-deep">
+                      {f.title ?? "Hand-picked fit"}
+                    </p>
+                    <p className="text-[11px] text-ink-faint">
+                      {new Date(f.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </Card>
           )}
         </>
       )}

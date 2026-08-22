@@ -171,6 +171,7 @@ export interface Outfit {
   reaction: 1 | -1 | null;
   dislike_reasons: string[] | null;
   dislike_note: string | null;
+  manual: boolean; // hand-picked by the user, not stylist-composed
   deleted: boolean;
   created_at: string;
 }

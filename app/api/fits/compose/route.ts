@@ -72,13 +72,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // Completeness: a renderable fit needs top+bottom (or a one-piece) and shoes.
+  // Completeness: a top and a bottom (or a one-piece). Everything else —
+  // shoes included — is the user's call.
   const has = (c: string) => items.some((i) => i.category === c);
   const onePiece = has("full_body");
   const missing: string[] = [];
   if (!onePiece && !has("top")) missing.push("a top");
   if (!onePiece && !has("bottom")) missing.push("bottoms");
-  if (!has("footwear")) missing.push("shoes");
   if (missing.length) {
     return NextResponse.json(
       {
@@ -119,6 +119,7 @@ export async function POST(request: Request) {
         variations: [],
         score: fit.score ?? null,
         render_status: "none",
+        manual: true,
       })
       .select()
       .single();

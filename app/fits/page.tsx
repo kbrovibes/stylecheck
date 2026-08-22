@@ -36,13 +36,13 @@ export default async function FitsPage({
   const { person } = await getActivePerson(supabase, user);
   const gallerySettings = await getOrCreateSettings(supabase, user.id);
   const goofyMode = gallerySettings.goofy_mode;
-  const showModelBadge = gallerySettings.show_model_badge;
 
   let query = supabase
     .from("sc_outfits")
     .select("*")
     .eq("person_id", person.id)
     .eq("deleted", false)
+    .eq("manual", false) // hand-picked fits live on the wardrobe page instead
     .order("created_at", { ascending: false });
   if (occasion && occasion in OCCASION_LABELS) {
     query = query.eq("occasion", occasion);
@@ -57,16 +57,6 @@ export default async function FitsPage({
   ]);
 
   const outfits = (outfitsData ?? []) as Outfit[];
-  const { data: gptRendersData } = await supabase
-    .from("sc_renders")
-    .select("subject_id, storage_path")
-    .eq("subject_type", "outfit")
-    .like("model", "gpt%")
-    .eq("deleted", false)
-    .in("subject_id", outfits.map((o) => o.id));
-  const gptByOutfit = new Map(
-    (gptRendersData ?? []).map((r) => [r.subject_id as string, r.storage_path as string])
-  );
   const visibleOutfits =
     minScore === null
       ? outfits
@@ -76,8 +66,6 @@ export default async function FitsPage({
 
   const paths = new Set<string>();
   for (const o of outfits) {
-    const gp = gptByOutfit.get(o.id);
-    if (gp) paths.add(gp);
     if (o.goofy_render_path) paths.add(o.goofy_render_path);
     if (o.render_path) {
       paths.add(o.render_path);
@@ -102,10 +90,6 @@ export default async function FitsPage({
     classicUrl: o.render_path ? (urls[o.render_path] ?? null) : null,
     goofyUrl: o.goofy_render_path ? (urls[o.goofy_render_path] ?? null) : null,
     goofyLead: goofyFirst(o.id),
-    gptUrl: (() => {
-      const gp = gptByOutfit.get(o.id);
-      return gp ? (urls[gp] ?? null) : null;
-    })(),
     degraded: o.item_ids.some((iid) => !itemById.has(iid)),
     reaction: o.reaction,
     thumbs: o.item_ids.slice(0, 4).map((iid) => {
@@ -180,7 +164,7 @@ export default async function FitsPage({
           }
         />
       ) : (
-        <FitsGallery cards={cards} goofyMode={goofyMode} showBadges={showModelBadge} />
+        <FitsGallery cards={cards} goofyMode={goofyMode} />
       )}
     </div>
   );
