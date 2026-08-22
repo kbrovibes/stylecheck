@@ -12,9 +12,9 @@ export const dynamic = "force-dynamic";
 export default async function WardrobePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; sub?: string }>;
 }) {
-  const { category } = await searchParams;
+  const { category, sub } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -42,6 +42,24 @@ export default async function WardrobePage({
     return acc;
   }, {});
 
+  // Granular quick filters: popular subcategory buckets, shown only when the
+  // wardrobe actually has a few of them.
+  const SUB_BUCKETS: { key: string; label: string; test: (i: WardrobeItem) => boolean }[] = [
+    { key: "tshirts", label: "T-shirts", test: (i) => /t-?shirt|\btee\b/i.test(`${i.subcategory} ${i.name}`) },
+    { key: "shirts", label: "Shirts", test: (i) => /shirt/i.test(`${i.subcategory} ${i.name}`) && !/t-?shirt|sweatshirt|\btee\b/i.test(`${i.subcategory} ${i.name}`) },
+    { key: "polos", label: "Polos", test: (i) => /polo/i.test(`${i.subcategory} ${i.name}`) },
+    { key: "knits", label: "Knits & hoodies", test: (i) => /hoodie|sweatshirt|sweater|knit|cardigan/i.test(`${i.subcategory} ${i.name}`) },
+    { key: "jeans", label: "Jeans", test: (i) => i.category === "bottom" && /jean|denim/i.test(`${i.subcategory} ${i.name}`) },
+    { key: "shorts", label: "Shorts", test: (i) => /short/i.test(`${i.subcategory} ${i.name}`) && i.category === "bottom" },
+    { key: "pants", label: "Pants & chinos", test: (i) => i.category === "bottom" && /chino|trouser|pant|jogger/i.test(`${i.subcategory} ${i.name}`) },
+    { key: "sneakers", label: "Sneakers", test: (i) => i.category === "footwear" && /sneaker|trainer/i.test(`${i.subcategory} ${i.name}`) },
+  ];
+  const subBuckets = SUB_BUCKETS.map((b) => ({
+    ...b,
+    count: allItems.filter(b.test).length,
+  })).filter((b) => b.count >= 3);
+  const activeSub = subBuckets.find((b) => b.key === sub);
+
   const usedIds = new Set(
     (activeOutfits ?? []).flatMap((o) => o.item_ids as string[])
   );
@@ -49,9 +67,11 @@ export default async function WardrobePage({
     (i) => i.enabled && !usedIds.has(i.id)
   ).length;
 
-  const items = category
-    ? allItems.filter((i) => i.category === category)
-    : allItems;
+  const items = activeSub
+    ? allItems.filter(activeSub.test)
+    : category
+      ? allItems.filter((i) => i.category === category)
+      : allItems;
 
   const paths = items.map((i) => i.catalog_image_path ?? i.original_image_path);
   const urls = imgUrls(paths);
@@ -95,7 +115,7 @@ export default async function WardrobePage({
             <Link
               href="/wardrobe"
               className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
-                !category
+                !category && !activeSub
                   ? "bg-ink text-ivory"
                   : "border hairline bg-paper text-ink-soft hover:bg-ivory"
               }`}
@@ -109,7 +129,7 @@ export default async function WardrobePage({
                   key={c}
                   href={`/wardrobe?category=${c}`}
                   className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
-                    category === c
+                    category === c && !activeSub
                       ? "bg-ink text-ivory"
                       : "border hairline bg-paper text-ink-soft hover:bg-ivory"
                   }`}
@@ -118,6 +138,24 @@ export default async function WardrobePage({
                 </Link>
               ))}
           </div>
+
+          {subBuckets.length > 0 && (
+            <div className="-mt-4 mb-8 flex flex-wrap items-center gap-2">
+              {subBuckets.map((b) => (
+                <Link
+                  key={b.key}
+                  href={activeSub?.key === b.key ? "/wardrobe" : `/wardrobe?sub=${b.key}`}
+                  className={`rounded-full px-3.5 py-1 text-[12px] transition-colors ${
+                    activeSub?.key === b.key
+                      ? "bg-camel text-ivory"
+                      : "border border-camel/30 bg-camel/5 text-camel-deep hover:bg-camel/15"
+                  }`}
+                >
+                  {b.label} · {b.count}
+                </Link>
+              ))}
+            </div>
+          )}
 
           <WardrobeGrid items={gridItems} selectable={editable} />
         </>
