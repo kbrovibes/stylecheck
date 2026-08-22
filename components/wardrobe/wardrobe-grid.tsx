@@ -24,13 +24,20 @@ export default function WardrobeGrid({
   items,
   sections,
   selectable = true,
+  startSelecting = false,
 }: {
   items: GridItem[];
   sections?: { title: string; items: GridItem[] }[] | null;
   selectable?: boolean;
+  startSelecting?: boolean;
 }) {
   const router = useRouter();
-  const [selecting, setSelecting] = useState(false);
+  const [selecting, setSelecting] = useState(startSelecting);
+  // The header "Build my own fit" link lands on ?build=1 — enter select mode
+  // even when the client component doesn't remount on that navigation.
+  useEffect(() => {
+    if (startSelecting) setSelecting(true);
+  }, [startSelecting]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +60,8 @@ export default function WardrobeGrid({
     setSelecting(false);
     setSelected(new Set());
     setError(null);
+    if (window.location.search.includes("build=1"))
+      router.replace("/wardrobe", { scroll: false });
   }
 
   async function styleThese() {

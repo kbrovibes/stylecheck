@@ -12,9 +12,9 @@ export const dynamic = "force-dynamic";
 export default async function WardrobePage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; sub?: string }>;
+  searchParams: Promise<{ category?: string; sub?: string; build?: string }>;
 }) {
-  const { category, sub } = await searchParams;
+  const { category, sub, build } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -128,6 +128,14 @@ export default async function WardrobePage({
   return (
     <div className="fade-up">
       <PageTitle eyebrow="The catalogue" title="Your" accent="wardrobe">
+        {editable && (
+          <Link
+            href="/wardrobe?build=1"
+            className="rounded-full border border-camel/50 bg-camel/10 px-5 py-2.5 text-[13px] font-medium text-camel-deep transition-colors hover:bg-camel/20"
+          >
+            Build my own fit
+          </Link>
+        )}
         {editable && unusedCount > 0 && <StyleUnusedButton count={unusedCount} />}
         {editable && (
           <Link
@@ -196,7 +204,11 @@ export default async function WardrobePage({
           )}
 
           {activeSub || category ? (
-            <WardrobeGrid items={gridItems} selectable={editable} />
+            <WardrobeGrid
+              items={gridItems}
+              selectable={editable}
+              startSelecting={editable && build === "1"}
+            />
           ) : (
             <WardrobeGrid
               items={[]}
@@ -205,6 +217,7 @@ export default async function WardrobePage({
                 items: gridItems.filter((g) => s.cats.has(categoryById.get(g.id) ?? "")),
               }))}
               selectable={editable}
+              startSelecting={editable && build === "1"}
             />
           )}
 
