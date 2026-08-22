@@ -9,7 +9,6 @@ const LINKS = [
   { href: "/", label: "Today" },
   { href: "/wardrobe", label: "Wardrobe" },
   { href: "/fits", label: "Fits" },
-  { href: "/upload", label: "Upload" },
   { href: "/profile", label: "Profile" },
   { href: "/settings", label: "Settings" },
 ];
@@ -31,12 +30,6 @@ const ICONS: Record<string, ReactNode> = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 4l1.8 4.6L18 10.5l-4.2 1.9L12 17l-1.8-4.6L6 10.5l4.2-1.9L12 4z" />
       <path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z" />
-    </svg>
-  ),
-  "/upload": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
-      <path d="M12 4v11M7.5 8.5L12 4l4.5 4.5" />
     </svg>
   ),
   "/profile": (
