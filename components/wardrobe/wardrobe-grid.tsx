@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui";
@@ -33,6 +34,10 @@ export default function WardrobeGrid({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The action bar portals to <body>: the page wrapper's fade-up animation
+  // leaves a transform behind, which would re-anchor position:fixed to it.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   function toggle(id: string) {
     setError(null);
@@ -194,7 +199,7 @@ export default function WardrobeGrid({
       )}
 
       {/* Floating action bar */}
-      {selecting && (
+      {selecting && mounted && createPortal(
         <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 md:bottom-6">
           <div className="sheet-up flex max-w-md flex-1 flex-col gap-1.5 rounded-3xl bg-ink px-5 py-3.5 shadow-2xl shadow-ink/30">
             <div className="flex items-center justify-between gap-4">
@@ -225,7 +230,8 @@ export default function WardrobeGrid({
             )}
             {error && <p className="text-[12px] text-blush">{error}</p>}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
