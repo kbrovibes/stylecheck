@@ -36,15 +36,21 @@ export default async function WardrobePage({
       .eq("deleted", false),
   ]);
 
-  // Popularity = how many rendered fits feature the piece; most-worn first.
+  // How many rendered fits feature each piece — shown as a caption.
   const fitCounts = new Map<string, number>();
   for (const o of activeOutfits ?? []) {
     if (!o.render_path) continue;
     for (const iid of o.item_ids as string[])
       fitCounts.set(iid, (fitCounts.get(iid) ?? 0) + 1);
   }
+  // Catalogue order: by garment type, like a store — tops before bottoms,
+  // then layers; newest first within a type (DB order, sort is stable).
+  const TYPE_ORDER: Record<string, number> = {
+    top: 0, bottom: 1, outerwear: 2, full_body: 3,
+    footwear: 4, accessory: 5, belt: 6, bag: 7, headwear: 8, eyewear: 9,
+  };
   const allItems = ((data ?? []) as WardrobeItem[]).sort(
-    (a, b) => (fitCounts.get(b.id) ?? 0) - (fitCounts.get(a.id) ?? 0)
+    (a, b) => (TYPE_ORDER[a.category] ?? 99) - (TYPE_ORDER[b.category] ?? 99)
   );
   const counts = allItems.reduce<Record<string, number>>((acc, i) => {
     acc[i.category] = (acc[i.category] ?? 0) + 1;
@@ -98,8 +104,14 @@ export default async function WardrobePage({
     benched: !item.enabled,
   }));
 
-  const GARMENTS = new Set(["top", "bottom", "outerwear", "full_body"]);
-  const garmentIds = new Set(items.filter((i) => GARMENTS.has(i.category)).map((i) => i.id));
+  // Section membership for the default (unfiltered) view.
+  const SECTIONS: { title: string; cats: Set<string> }[] = [
+    { title: "The rack", cats: new Set(["top", "bottom", "outerwear", "full_body"]) },
+    { title: "The shoes", cats: new Set(["footwear"]) },
+    { title: "The accessories", cats: new Set(["accessory", "belt", "bag", "headwear"]) },
+    { title: "The glasses", cats: new Set(["eyewear"]) },
+  ];
+  const categoryById = new Map(items.map((i) => [i.id, i.category]));
   const editable = canManage(role);
 
   return (
@@ -177,10 +189,10 @@ export default async function WardrobePage({
           ) : (
             <WardrobeGrid
               items={[]}
-              sections={[
-                { title: "The rack", items: gridItems.filter((g) => garmentIds.has(g.id)) },
-                { title: "Shoes & accessories", items: gridItems.filter((g) => !garmentIds.has(g.id)) },
-              ]}
+              sections={SECTIONS.map((s) => ({
+                title: s.title,
+                items: gridItems.filter((g) => s.cats.has(categoryById.get(g.id) ?? "")),
+              }))}
               selectable={editable}
             />
           )}
