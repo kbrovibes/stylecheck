@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   const has = (c: string) => items.some((i) => i.category === c);
   const onePiece = has("full_body");
   const missing: string[] = [];
-  if (!onePiece && !has("top")) missing.push("a top");
+  if (!onePiece && !has("top") && !has("outerwear")) missing.push("a top");
   if (!onePiece && !has("bottom")) missing.push("bottoms");
   if (missing.length) {
     return NextResponse.json(

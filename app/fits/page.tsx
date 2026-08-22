@@ -24,9 +24,10 @@ export const dynamic = "force-dynamic";
 export default async function FitsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ occasion?: string; min?: string }>;
+  searchParams: Promise<{ occasion?: string; min?: string; mine?: string }>;
 }) {
-  const { occasion, min } = await searchParams;
+  const { occasion, min, mine } = await searchParams;
+  const mineOnly = mine === "1";
   const minScore = min === "8" || min === "9" ? Number(min) : null;
   const supabase = await createClient();
   const {
@@ -42,7 +43,8 @@ export default async function FitsPage({
     .select("*")
     .eq("person_id", person.id)
     .eq("deleted", false)
-    .eq("manual", false) // hand-picked fits live on the wardrobe page instead
+    // Hand-picked fits live behind their own "Styled by me" filter.
+    .eq("manual", mineOnly)
     .order("created_at", { ascending: false });
   if (occasion && occasion in OCCASION_LABELS) {
     query = query.eq("occasion", occasion);
@@ -112,7 +114,7 @@ export default async function FitsPage({
 
       <div className="mb-8 flex flex-wrap gap-2">
         {tabs.map((t) => {
-          const active = (occasion ?? "") === t.value;
+          const active = !mineOnly && (occasion ?? "") === t.value;
           return (
             <Link
               key={t.value}
@@ -127,6 +129,16 @@ export default async function FitsPage({
             </Link>
           );
         })}
+        <Link
+          href="/fits?mine=1"
+          className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+            mineOnly
+              ? "bg-camel text-ivory"
+              : "border border-camel/40 bg-camel/5 text-camel-deep hover:bg-camel/15"
+          }`}
+        >
+          Styled by me
+        </Link>
         <span className="mx-1 hidden self-center text-ink-faint/40 sm:inline">|</span>
         {[
           { v: "", label: "Any rating" },
@@ -158,9 +170,11 @@ export default async function FitsPage({
         <EmptyState
           title="Nothing on the rack yet."
           body={
-            occasion
-              ? "No fits for this occasion yet — generate a fresh set."
-              : "Your stylist is ready. Generate fits from your wardrobe and see them rendered on you."
+            mineOnly
+              ? "You haven't styled a fit yourself yet — hit Build my own fit on the Wardrobe page."
+              : occasion
+                ? "No fits for this occasion yet — generate a fresh set."
+                : "Your stylist is ready. Generate fits from your wardrobe and see them rendered on you."
           }
         />
       ) : (

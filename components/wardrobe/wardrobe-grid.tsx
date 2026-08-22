@@ -86,13 +86,15 @@ export default function WardrobeGrid({
     ? sections.flatMap((sec) => sec.items)
     : items;
 
-  // A fit needs a top and a bottom (or a one-piece) — the rest is optional.
+  // A fit needs something for the torso (top / blazer / jacket / one-piece)
+  // and a bottom — the rest is optional.
   const selectedCats = new Set(
     allItems.filter((i) => selected.has(i.id)).map((i) => i.category)
   );
   const wearable =
     selectedCats.has("full_body") ||
-    (selectedCats.has("top") && selectedCats.has("bottom"));
+    ((selectedCats.has("top") || selectedCats.has("outerwear")) &&
+      selectedCats.has("bottom"));
 
   const renderGrid = (list: GridItem[]) => (
       <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
