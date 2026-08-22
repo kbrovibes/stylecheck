@@ -170,6 +170,15 @@ export default async function TodayPage() {
         </h1>
       </div>
 
+      {itemCount > 0 && (
+        <WardrobeHero
+          sceneUrl={sceneUrlResolved}
+          status={person.wardrobe_scene_status}
+          stale={sceneStale}
+          groups={heroGroups}
+        />
+      )}
+
       {/* Today's picks */}
       {picked.length > 0 && (
         <section className="mb-10">
@@ -221,15 +230,6 @@ export default async function TodayPage() {
             ))}
           </div>
         </section>
-      )}
-
-      {itemCount > 0 && (
-        <WardrobeHero
-          sceneUrl={sceneUrlResolved}
-          status={person.wardrobe_scene_status}
-          stale={sceneStale}
-          groups={heroGroups}
-        />
       )}
 
       {/* Slim info strip: weather is a profile attribute, not a hero feature */}
