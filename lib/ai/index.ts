@@ -110,9 +110,15 @@ export async function composeOutfits(
       return {
         ...o,
         item_ids: kept,
-        variations: (o.variations ?? []).filter(
-          (v) => validIds.has(v.swap_out) && validIds.has(v.swap_in)
-        ),
+        // A swap must not change the outfit's structure: same category, or
+        // both torso pieces (tee ↔ overshirt is fine; top ↔ shoes is not).
+        variations: (o.variations ?? []).filter((v) => {
+          if (!validIds.has(v.swap_out) || !validIds.has(v.swap_in)) return false;
+          const out = categoryById.get(v.swap_out);
+          const swapIn = categoryById.get(v.swap_in);
+          const TORSO = new Set(["top", "outerwear", "full_body"]);
+          return out === swapIn || (TORSO.has(out!) && TORSO.has(swapIn!));
+        }),
       };
     })
     .filter((o) => {
