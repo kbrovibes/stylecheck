@@ -20,9 +20,11 @@ export interface GridItem {
  */
 export default function WardrobeGrid({
   items,
+  sections,
   selectable = true,
 }: {
   items: GridItem[];
+  sections?: { title: string; items: GridItem[] }[] | null;
   selectable?: boolean;
 }) {
   const router = useRouter();
@@ -65,28 +67,13 @@ export default function WardrobeGrid({
     }
   }
 
-  return (
-    <>
-      <div className="mb-6 flex items-center justify-between">
-        <p className="eyebrow !mb-0">
-          {items.length} piece{items.length === 1 ? "" : "s"}
-        </p>
-        {selectable && (
-        <button
-          onClick={() => (selecting ? reset() : setSelecting(true))}
-          className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
-            selecting
-              ? "bg-ink text-ivory"
-              : "border hairline bg-paper text-ink-soft hover:bg-ivory"
-          }`}
-        >
-          {selecting ? "Done" : "Select"}
-        </button>
-        )}
-      </div>
+  const allItems = sections?.length
+    ? sections.flatMap((sec) => sec.items)
+    : items;
 
+  const renderGrid = (list: GridItem[]) => (
       <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
-        {items.map((item) => {
+        {list.map((item) => {
           const isSel = selected.has(item.id);
           const media = (
             <>
@@ -157,6 +144,45 @@ export default function WardrobeGrid({
           );
         })}
       </div>
+  );
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <p className="eyebrow !mb-0">
+          {allItems.length} piece{allItems.length === 1 ? "" : "s"}
+        </p>
+        {selectable && (
+        <button
+          onClick={() => (selecting ? reset() : setSelecting(true))}
+          className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+            selecting
+              ? "bg-ink text-ivory"
+              : "border hairline bg-paper text-ink-soft hover:bg-ivory"
+          }`}
+        >
+          {selecting ? "Done" : "Select"}
+        </button>
+        )}
+      </div>
+
+      {sections && sections.length ? (
+        sections
+          .filter((sec) => sec.items.length > 0)
+          .map((sec, si) => (
+            <div key={sec.title} className={si > 0 ? "mt-14" : ""}>
+              <h2 className="mb-5 text-xl font-semibold tracking-tight">
+                {sec.title.split(" ")[0]}{" "}
+                <span className="serif-accent text-camel">
+                  {sec.title.split(" ").slice(1).join(" ")}
+                </span>
+              </h2>
+              {renderGrid(sec.items)}
+            </div>
+          ))
+      ) : (
+        renderGrid(items)
+      )}
 
       {/* Floating action bar */}
       {selecting && selected.size > 0 && (

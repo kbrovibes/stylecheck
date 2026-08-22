@@ -85,6 +85,8 @@ export default async function WardrobePage({
     benched: !item.enabled,
   }));
 
+  const GARMENTS = new Set(["top", "bottom", "outerwear", "full_body"]);
+  const garmentIds = new Set(items.filter((i) => GARMENTS.has(i.category)).map((i) => i.id));
   const editable = canManage(role);
 
   return (
@@ -157,7 +159,18 @@ export default async function WardrobePage({
             </div>
           )}
 
-          <WardrobeGrid items={gridItems} selectable={editable} />
+          {activeSub || category ? (
+            <WardrobeGrid items={gridItems} selectable={editable} />
+          ) : (
+            <WardrobeGrid
+              items={[]}
+              sections={[
+                { title: "The rack", items: gridItems.filter((g) => garmentIds.has(g.id)) },
+                { title: "Shoes & accessories", items: gridItems.filter((g) => !garmentIds.has(g.id)) },
+              ]}
+              selectable={editable}
+            />
+          )}
         </>
       )}
     </div>
