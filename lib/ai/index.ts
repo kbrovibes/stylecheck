@@ -91,17 +91,37 @@ export async function composeOutfits(
   const prompt = composeOutfitsPrompt({ ...opts, settings });
   const res = await jsonCall<{ outfits: OutfitPlan[] }>(settings)(prompt);
   const validIds = new Set(opts.items.map((i) => i.id));
+  const categoryById = new Map(opts.items.map((i) => [i.id, i.category]));
   // Salvage outfits with a hallucinated id instead of dropping them wholesale:
-  // strip invalid ids and keep the outfit if it still has a wearable core.
+  // strip invalid ids — but only keep the outfit if what remains is still a
+  // wearable look. Stripping can amputate the torso piece (the model named a
+  // real-sounding but invalid id), leaving e.g. two pants + sneakers.
   return (res.outfits ?? [])
-    .map((o) => ({
-      ...o,
-      item_ids: (o.item_ids ?? []).filter((id) => validIds.has(id)),
-      variations: (o.variations ?? []).filter(
-        (v) => validIds.has(v.swap_out) && validIds.has(v.swap_in)
-      ),
-    }))
-    .filter((o) => o.item_ids.length >= 2);
+    .map((o) => {
+      const ids = (o.item_ids ?? []).filter((id) => validIds.has(id));
+      // One bottom max — a second pair of pants is model confusion, not layering.
+      let bottomSeen = false;
+      const kept = ids.filter((id) => {
+        if (categoryById.get(id) !== "bottom") return true;
+        if (bottomSeen) return false;
+        bottomSeen = true;
+        return true;
+      });
+      return {
+        ...o,
+        item_ids: kept,
+        variations: (o.variations ?? []).filter(
+          (v) => validIds.has(v.swap_out) && validIds.has(v.swap_in)
+        ),
+      };
+    })
+    .filter((o) => {
+      if (o.item_ids.length < 2) return false;
+      const cats = o.item_ids.map((id) => categoryById.get(id));
+      const torso = cats.some((c) => c === "top" || c === "outerwear" || c === "full_body");
+      const legs = cats.some((c) => c === "bottom" || c === "full_body");
+      return torso && legs;
+    });
 }
 
 /** Compact physical description ("identity passport") from real photos. */
