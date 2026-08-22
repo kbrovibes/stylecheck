@@ -173,17 +173,17 @@ export default function WardrobeGrid({
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between sm:mb-6">
         <p className="eyebrow !mb-0">
           {allItems.length} piece{allItems.length === 1 ? "" : "s"}
         </p>
       </div>
 
       {selectable && !selecting && (
-        <div className="mb-8 flex justify-center">
+        <div className="mb-5 flex justify-center sm:mb-8">
           <button
             onClick={() => setSelecting(true)}
-            className="rounded-full bg-camel px-8 py-3 text-[14px] font-medium tracking-tight text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-xl hover:shadow-camel/40"
+            className="rounded-full bg-camel px-6 py-2.5 text-[13px] font-medium tracking-tight text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-xl hover:shadow-camel/40 sm:px-8 sm:py-3 sm:text-[14px]"
           >
             Build my own fit
           </button>
@@ -191,7 +191,7 @@ export default function WardrobeGrid({
       )}
 
       {selecting && (
-        <div className="sheet-up mb-8 flex items-center justify-between gap-4 rounded-2xl border border-camel/30 bg-camel/10 px-5 py-4">
+        <div className="sheet-up mb-5 flex items-center justify-between gap-4 rounded-2xl border border-camel/30 bg-camel/10 px-5 py-4 sm:mb-8">
           <p className="text-[14px] leading-relaxed text-camel-deep">
             <span className="font-semibold">You&rsquo;re building a fit.</span>{" "}
             Tap the pieces you want to wear — at least a top and a bottom, plus
@@ -212,8 +212,8 @@ export default function WardrobeGrid({
         sections
           .filter((sec) => sec.items.length > 0)
           .map((sec, si) => (
-            <div key={sec.title} className={si > 0 ? "mt-14" : ""}>
-              <h2 className="mb-5 text-xl font-semibold tracking-tight">
+            <div key={sec.title} className={si > 0 ? "mt-10 sm:mt-14" : ""}>
+              <h2 className="mb-4 text-xl font-semibold tracking-tight sm:mb-5">
                 {sec.title.split(" ")[0]}{" "}
                 <span className="serif-accent text-camel">
                   {sec.title.split(" ").slice(1).join(" ")}

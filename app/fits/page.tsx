@@ -118,14 +118,15 @@ export default async function FitsPage({
         <GenerateButton />
       </PageTitle>
 
-      <div className="mb-8 flex flex-wrap gap-2">
+      {/* One scrollable chip rail on mobile; wraps on desktop */}
+      <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:mb-8 sm:flex-wrap sm:overflow-visible sm:px-0">
         {tabs.map((t) => {
           const active = !mineOnly && (occasion ?? "") === t.value;
           return (
             <Link
               key={t.value}
               href={`/fits${[t.value ? `occasion=${t.value}` : "", min ? `min=${min}` : ""].filter(Boolean).length ? `?${[t.value ? `occasion=${t.value}` : "", min ? `min=${min}` : ""].filter(Boolean).join("&")}` : ""}`}
-              className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] transition-colors ${
                 active
                   ? "bg-ink text-ivory"
                   : "border hairline bg-paper text-ink-soft hover:bg-ivory"
@@ -137,7 +138,7 @@ export default async function FitsPage({
         })}
         <Link
           href="/fits?mine=1"
-          className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] transition-colors ${
             mineOnly
               ? "bg-camel text-ivory"
               : "border border-camel/40 bg-camel/5 text-camel-deep hover:bg-camel/15"
@@ -160,7 +161,7 @@ export default async function FitsPage({
             <Link
               key={f.label}
               href={qs ? `/fits?${qs}` : "/fits"}
-              className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] transition-colors ${
                 active
                   ? "bg-camel text-ivory"
                   : "border hairline bg-paper text-ink-soft hover:bg-ivory"

@@ -17,10 +17,10 @@ export function PageTitle({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 sm:mb-10">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 sm:mb-10">
       <div>
         <Eyebrow>{eyebrow}</Eyebrow>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
           {title}
           {accent && <span className="serif-accent text-camel"> {accent}</span>}
         </h1>

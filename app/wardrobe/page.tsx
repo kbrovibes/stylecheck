@@ -166,11 +166,11 @@ export default async function WardrobePage({
         />
       ) : (
         <>
-          {/* Category chips */}
-          <div className="mb-8 flex flex-wrap items-center gap-2">
+          {/* Category chips — scrollable rail on mobile, wraps on desktop */}
+          <div className="no-scrollbar -mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:mb-8 sm:flex-wrap sm:overflow-visible sm:px-0">
             <Link
               href="/wardrobe"
-              className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] transition-colors ${
                 !category && !activeSub
                   ? "bg-ink text-ivory"
                   : "border hairline bg-paper text-ink-soft hover:bg-ivory"
@@ -184,7 +184,7 @@ export default async function WardrobePage({
                 <Link
                   key={c}
                   href={`/wardrobe?category=${c}`}
-                  className={`rounded-full px-4 py-1.5 text-[13px] transition-colors ${
+                  className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] transition-colors ${
                     category === c && !activeSub
                       ? "bg-ink text-ivory"
                       : "border hairline bg-paper text-ink-soft hover:bg-ivory"
@@ -196,12 +196,12 @@ export default async function WardrobePage({
           </div>
 
           {subBuckets.length > 0 && (
-            <div className="-mt-4 mb-8 flex flex-wrap items-center gap-2">
+            <div className="no-scrollbar -mx-4 mb-5 flex items-center gap-2 overflow-x-auto px-4 sm:-mt-4 sm:mx-0 sm:mb-8 sm:flex-wrap sm:overflow-visible sm:px-0">
               {subBuckets.map((b) => (
                 <Link
                   key={b.key}
                   href={activeSub?.key === b.key ? "/wardrobe" : `/wardrobe?sub=${b.key}`}
-                  className={`rounded-full px-3.5 py-1 text-[12px] transition-colors ${
+                  className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-[12px] transition-colors ${
                     activeSub?.key === b.key
                       ? "bg-camel text-ivory"
                       : "border border-camel/30 bg-camel/5 text-camel-deep hover:bg-camel/15"
