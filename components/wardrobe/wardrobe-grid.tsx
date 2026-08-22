@@ -131,13 +131,13 @@ export default function WardrobeGrid({
                 )}
                 {selecting && (
                   <span
-                    className={`absolute bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-full text-[13px] transition-all ${
+                    className={`absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full text-[15px] shadow-sm transition-all ${
                       isSel
                         ? "bg-camel text-ivory"
-                        : "border border-ivory/70 bg-ink/30 text-transparent backdrop-blur"
+                        : "border border-camel/50 bg-paper/95 text-camel-deep"
                     }`}
                   >
-                    ✓
+                    {isSel ? "✓" : "+"}
                   </span>
                 )}
               </div>
@@ -175,12 +175,16 @@ export default function WardrobeGrid({
         <p className="eyebrow !mb-0">
           {allItems.length} piece{allItems.length === 1 ? "" : "s"}
         </p>
-        {selecting && (
-          <p className="text-[13px] text-camel-deep">
-            Tap pieces to add them to your fit
-          </p>
-        )}
       </div>
+
+      {selecting && (
+        <div className="sheet-up mb-8 rounded-2xl border border-camel/30 bg-camel/10 px-5 py-4 text-[14px] leading-relaxed text-camel-deep">
+          <span className="font-semibold">You&rsquo;re building a fit.</span>{" "}
+          Tap the pieces you want to wear — at least a top and a bottom, plus
+          anything else you like. Then hit{" "}
+          <span className="font-semibold">Render my fit</span> in the bar below.
+        </div>
+      )}
 
       {sections && sections.length ? (
         sections
@@ -206,7 +210,9 @@ export default function WardrobeGrid({
           <div className="sheet-up flex max-w-md flex-1 flex-col gap-1.5 rounded-3xl bg-ink px-5 py-3.5 shadow-2xl shadow-ink/30">
             <div className="flex items-center justify-between gap-4">
               <span className="text-[13px] text-ivory/80">
-                {selected.size} selected
+                {selected.size
+                  ? `${selected.size} selected`
+                  : "Tap pieces above to start"}
               </span>
               <span className="flex items-center gap-3">
                 <button
