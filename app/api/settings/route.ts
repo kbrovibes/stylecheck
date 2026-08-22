@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 
+const ADMIN_EMAILS = ["k4rthikr@gmail.com"];
+
 const BOOL_FIELDS = [
   "generate_accessories",
   "generate_shoes",
@@ -37,13 +39,24 @@ export async function PATCH(request: Request) {
     update.image_model = body.image_model.trim();
   if (
     typeof body.person_image_model === "string" &&
-    ["gemini-3-pro-image-preview", "gemini-2.5-flash-image", "gpt-image-1"].includes(
+    ["gemini-3-pro-image-preview", "gemini-2.5-flash-image", "gpt-image-1.5", "gpt-image-1"].includes(
       body.person_image_model
     )
   )
     update.person_image_model = body.person_image_model;
   for (const f of BOOL_FIELDS) {
     if (f in body) update[f] = !!body[f];
+  }
+
+  // Non-admin accounts are Gemini-only: no OpenAI provider/models, no
+  // alt-model comparison renders.
+  if (!user.email || !ADMIN_EMAILS.includes(user.email)) {
+    if (update.provider === "openai") update.provider = "gemini";
+    for (const f of ["text_model", "image_model", "person_image_model"] as const) {
+      if (typeof update[f] === "string" && !(update[f] as string).startsWith("gemini"))
+        delete update[f];
+    }
+    update.alt_render_async = false;
   }
 
   const { data, error } = await supabase

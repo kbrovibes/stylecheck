@@ -16,10 +16,12 @@ export default function RenderButton({
   outfitId,
   hasRender,
   goofy = false,
+  gpt = false,
 }: {
   outfitId: string;
   hasRender: boolean;
   goofy?: boolean;
+  gpt?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -49,7 +51,7 @@ export default function RenderButton({
       const res = await fetch(`/api/fits/${outfitId}/render`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goofy }),
+        body: JSON.stringify({ goofy, gpt }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -74,6 +76,8 @@ export default function RenderButton({
       >
         {loading ? (
           <span className="serif-accent">{LOADING_COPY[copyIdx]}</span>
+        ) : gpt ? (
+          hasRender ? "Re-render with GPT (admin)" : "Render with GPT (admin)"
         ) : hasRender ? (
           goofy ? "Re-render goofy take" : "Re-render"
         ) : (

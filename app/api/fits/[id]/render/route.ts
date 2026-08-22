@@ -4,10 +4,12 @@ import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { after } from "next/server";
 import { renderOutfitRecord } from "@/lib/render";
-import { altPersonModel, resolvePersonModel } from "@/lib/ai";
+import { GPT_PERSON_MODEL, altPersonModel, resolvePersonModel } from "@/lib/ai";
 import type { Outfit, Person } from "@/lib/types";
 
 export const maxDuration = 300;
+
+const ADMIN_EMAILS = ["k4rthikr@gmail.com"];
 
 export async function POST(
   request: Request,
@@ -16,6 +18,7 @@ export async function POST(
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
   const goofy = !!body?.goofy;
+  const gpt = !!body?.gpt;
 
   let supabase, user;
   try {
@@ -67,7 +70,23 @@ export async function POST(
 
   try {
     const settings = await getOrCreateSettings(supabase, user.id);
-// The classic render is canonical — a goofy request on an unrendered fit
+    // Admin-only comparison render with GPT: recorded in render history
+    // ("Additional renders") only — never becomes the fit's main render.
+    if (gpt) {
+      if (!user.email || !ADMIN_EMAILS.includes(user.email)) {
+        return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      }
+      const path = await renderOutfitRecord(
+        supabase,
+        user.id,
+        outfit,
+        personData as Person,
+        settings,
+        { modelOverride: GPT_PERSON_MODEL, recordOnly: true }
+      );
+      return NextResponse.json({ render_path: path });
+    }
+    // The classic render is canonical — a goofy request on an unrendered fit
     // produces the normal version first, then the goofy take.
     if (goofy && !outfit.render_path) {
       await renderOutfitRecord(supabase, user.id, outfit, personData as Person, settings);

@@ -22,6 +22,8 @@ import {
   type WardrobeItem,
 } from "@/lib/types";
 
+const ADMIN_EMAILS = ["k4rthikr@gmail.com"];
+
 function goofyFirst(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i)) % 997;
@@ -84,12 +86,8 @@ export default async function FitDetailPage({
   const liveIds = new Set(items.map((i) => i.id));
   const deadCount = outfit.item_ids.filter((iid) => !liveIds.has(iid)).length;
   const renders = (rendersData ?? []) as RenderRecord[];
-  const gptClassic = renders.find(
-    (r) => r.subject_type === "outfit" && r.model.startsWith("gpt")
-  )?.storage_path;
-  const gptGoofy = renders.find(
-    (r) => r.subject_type === "outfit_goofy" && r.model.startsWith("gpt")
-  )?.storage_path;
+  const isAdmin = !!user.email && ADMIN_EMAILS.includes(user.email);
+  const hasGptRender = renders.some((r) => r.model.startsWith("gpt"));
 
   const paths = new Set<string>();
   if (outfit.render_path) paths.add(outfit.render_path);
@@ -98,19 +96,13 @@ export default async function FitDetailPage({
   renders.forEach((r) => paths.add(r.storage_path));
   const urls = imgUrls([...paths]);
 
-  // Carousel: OpenAI takes lead, then Gemini; goofy takes appended in goofy mode.
+  // Carousel: primary renders only — GPT takes live in Additional renders below.
   const slides = [
-    gptClassic && urls[gptClassic]
-      ? { url: urls[gptClassic], label: showModelBadge ? "classic · gpt-image-1" : "classic · gpt" }
-      : null,
     outfit.render_path && urls[outfit.render_path]
       ? { url: urls[outfit.render_path], label: showModelBadge ? `classic · ${(outfit.render_model ?? "gemini").replace("-preview", "")}` : "classic" }
       : null,
     ...(goofyMode
       ? [
-          gptGoofy && urls[gptGoofy]
-            ? { url: urls[gptGoofy], label: showModelBadge ? "goofy · gpt-image-1" : "goofy · gpt" }
-            : null,
           outfit.goofy_render_path && urls[outfit.goofy_render_path]
             ? { url: urls[outfit.goofy_render_path], label: "goofy" }
             : null,
@@ -171,6 +163,9 @@ export default async function FitDetailPage({
                 hasRender={!!outfit.goofy_render_path}
                 goofy
               />
+            )}
+            {isAdmin && (
+              <RenderButton outfitId={outfit.id} hasRender={hasGptRender} gpt />
             )}
             <FitActions
               outfitId={outfit.id}
@@ -277,10 +272,10 @@ export default async function FitDetailPage({
         </div>
       </div>
 
-      {/* Render history */}
+      {/* Additional renders: model comparisons + history, never the main carousel */}
       {renders.length > 1 && (
         <Card className="mt-12">
-          <p className="eyebrow mb-4">Render history — compare models</p>
+          <p className="eyebrow mb-4">Additional renders — compare models</p>
           <div className="flex gap-4 overflow-x-auto pb-2">
             {renders.map((r) => (
               <div key={r.id} className="w-36 shrink-0">

@@ -218,6 +218,55 @@ REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
 }
 
+/**
+ * GPT-image try-on prompt (edits endpoint, flat image array — roles must be
+ * declared by index). Structure follows OpenAI's own virtual try-on guidance:
+ * explicit preserve-list, replace-only-clothing, anti-beautify block.
+ */
+export function gptTryOnPrompt(opts: {
+  profile: BodyProfile;
+  items: WardrobeItem[];
+  outfit: Pick<Outfit, "title" | "styling_notes"> | null;
+  manifest: string[]; // role of each attached image, in order
+  editBase: boolean;
+  goofy?: boolean;
+  identityNotes?: string | null;
+  adjustments?: RenderAdjustments | null;
+  faceFixNotes?: string[] | null;
+}) {
+  const { profile, items, outfit } = opts;
+  const itemDesc = items
+    .map((i) => `${i.category}: ${i.name ?? i.subcategory ?? "item"} (${i.primary_color ?? i.colors.join(", ")})`)
+    .join("; ");
+  const roles = opts.manifest
+    .map((role, i) => `Image ${i + 1}: ${role}.`)
+    .join("\n");
+  return `IMAGE ROLES — the attached images, in order:
+${roles}
+
+TASK: ${opts.editBase ? "Edit Image 1" : "Photograph the person shown in the reference images"} so they are wearing exactly these wardrobe items: ${itemDesc}.
+
+IDENTITY — the most important requirement:
+Do not change the face, facial features, skin tone, body shape, or identity in any way. Preserve the exact likeness, hairstyle, hairline, facial hair, and eyewear (never add or remove glasses). The images marked as REAL photographs are the authoritative face reference: the output face must match them exactly${opts.editBase ? " — if Image 1 differs from the real photographs in any facial detail, correct toward the photographs" : ""}.
+Preserve the subject's bone structure, eye shape and spacing, nose, lips, jawline, ears, and natural skin texture completely. Keep real pores and fine lines visible. Do not over-smooth, do not alter facial proportions, do not change skin tone, and do not beautify, slim, de-age, or idealize the face. The result must be instantly recognizable as this exact individual.${opts.identityNotes ? `\nVERIFIED IDENTITY DESCRIPTION (cross-check the output against every detail): ${opts.identityNotes}` : ""}
+${opts.faceFixNotes?.length ? `\nPREVIOUS ATTEMPT REJECTED — an identity review found these mismatches against the real photographs. Correct every one:\n${opts.faceFixNotes.map((m) => `- ${m}`).join("\n")}\n` : ""}
+CLOTHING:
+Replace only the clothing. Each garment must match its reference image faithfully — same color, pattern, fabric and details. Do not redesign or substitute garments, and do not add accessories, jewelry, bags, text, logos, or watermarks.
+Fit the garments naturally to this person's ${opts.editBase ? "existing pose and body geometry" : "build"} with realistic fabric drape, folds, and shadows (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg — honest silhouette).${ageFromBirthYear(profile.birth_year) ? ` The person is ${ageFromBirthYear(profile.birth_year)} years old — style for that age, and never de-age or age the face.` : ""}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
+
+SCENE:
+${opts.goofy ? goofyPoseInstruction() : opts.editBase ? "Keep the pose, camera angle, framing, lighting, and the ivory studio background exactly the same as Image 1. Match lighting, shadows, and color temperature so the new clothing integrates photorealistically." : "Photorealistic full-body studio fashion shot: standing, relaxed natural pose, camera at chest height, soft ivory seamless backdrop, soft even lighting, subtle shadow."}
+- Full frame, head to shoes fully visible, photorealistic, 3:4 portrait.
+${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
+}
+
+/** Judge prompt: is the rendered face the same real person? JSON verdict. */
+export const FACE_MATCH_PROMPT = `You are a strict identity-verification judge. Image 1 is an AI-generated render. The remaining image(s) are REAL photographs of a specific person. Judge whether the render depicts that same individual.
+Compare: overall face shape and proportions, eye shape and spacing, eyebrows, nose shape, mouth and lips, jawline and chin, cheekbones, ears, skin tone, distinguishing marks (moles, freckles, smile lines), hairline and hairstyle, facial hair, and eyewear. Ignore clothing, pose, lighting, image quality, and background.
+Respond with JSON only: {"same_person": boolean, "score": number, "mismatches": string[]}
+- "score": 0-10 identity similarity. Award 8+ ONLY if someone who knows this person would instantly recognize the render as them.
+- "mismatches": every concrete facial difference, most important first, each phrased as a correction (e.g. "nose is narrower than in the real photos — widen it to match").`;
+
 export function renderOutfitPrompt(opts: {
   profile: BodyProfile;
   items: WardrobeItem[];

@@ -19,10 +19,12 @@ import {
 import { openaiImage, openaiImageEdit, openaiJson } from "./openai";
 import {
   BASE_RENDER_PROMPT,
+  FACE_MATCH_PROMPT,
   IDENTITY_NOTES_PROMPT,
   catalogImagePrompt,
   CLASSIFY_PROMPT,
   composeOutfitsPrompt,
+  gptTryOnPrompt,
   outfitEditPrompt,
   reclassifyItemPrompt,
   renderOutfitPrompt,
@@ -31,9 +33,13 @@ import {
 
 export type { ImageInput };
 
+/** Preferred OpenAI model for person renders — 1.5 is built for likeness preservation. */
+export const GPT_PERSON_MODEL = "gpt-image-1.5";
+
 export const PERSON_IMAGE_MODELS = [
   "gemini-3-pro-image-preview",
   "gemini-2.5-flash-image",
+  "gpt-image-1.5",
   "gpt-image-1",
 ] as const;
 
@@ -44,7 +50,7 @@ export function resolvePersonModel(settings: Settings, override?: string | null)
 
 /** The comparison model from the other family. */
 export function altPersonModel(model: string) {
-  return model.startsWith("gpt") ? "gemini-3-pro-image-preview" : "gpt-image-1";
+  return model.startsWith("gpt") ? "gemini-3-pro-image-preview" : GPT_PERSON_MODEL;
 }
 
 function jsonCall<T>(settings: Settings) {
@@ -168,19 +174,40 @@ export async function renderOutfitImage(
     identityPhotos?: ImageInput[]; // REAL photos grounding the face each render
     identityNotes?: string | null; // stored identity passport
     modelOverride?: string | null;
+    faceFixNotes?: string[] | null; // corrections from a failed face-match check
   }
 ) {
   const model = resolvePersonModel(settings, opts.modelOverride);
   if (model.startsWith("gpt")) {
-    // gpt-image-1 edits: base render first, then identity photos + items.
+    // gpt-image edits: the FIRST image is the one preserved with the most
+    // fidelity — person anchor first, then real face refs, then garments.
+    // Roles are declared by index since the edits endpoint takes a flat array.
+    const manifest = [
+      ...opts.personImages.map((_, i) =>
+        opts.editBase && i === 0
+          ? "BASE IMAGE — the studio photograph of the person to edit"
+          : "the person (identity reference)"
+      ),
+      ...(opts.identityPhotos ?? []).map(
+        () => "REAL photograph of the person — authoritative face reference"
+      ),
+      ...opts.itemImages.map((_, i) => {
+        const item = opts.items[i];
+        return `wardrobe item to dress them in — ${item?.name ?? item?.subcategory ?? item?.category ?? "garment"}${item?.primary_color ? ` (${item.primary_color})` : ""}`;
+      }),
+    ];
     return openaiImageEdit({
       model,
-      prompt: opts.editBase
-        ? outfitEditPrompt({
-            ...opts,
-            identityPhotoCount: opts.identityPhotos?.length ?? 0,
-          })
-        : renderOutfitPrompt({ ...opts, personImageCount: opts.personImages.length }),
+      prompt: gptTryOnPrompt({
+        profile: opts.profile,
+        items: opts.items,
+        outfit: opts.outfit,
+        manifest,
+        editBase: !!opts.editBase,
+        goofy: opts.goofy,
+        identityNotes: opts.identityNotes,
+        faceFixNotes: opts.faceFixNotes,
+      }),
       images: [
         ...opts.personImages,
         ...(opts.identityPhotos ?? []),
@@ -237,4 +264,33 @@ export async function renderOutfitImage(
         },
       ];
   return geminiImageParts({ model, parts });
+}
+
+export type FaceMatchResult = {
+  same_person: boolean;
+  score: number; // 0-10
+  mismatches: string[];
+};
+
+/**
+ * Judge whether a rendered face matches the person's REAL photos. Always
+ * judged by Gemini so the check is independent of the generating model.
+ */
+export async function verifyFaceMatch(
+  settings: Settings,
+  render: ImageInput,
+  references: ImageInput[]
+): Promise<FaceMatchResult> {
+  const res = await geminiJson<FaceMatchResult>({
+    model: settings.text_model?.startsWith("gemini")
+      ? settings.text_model
+      : "gemini-2.5-flash",
+    prompt: FACE_MATCH_PROMPT,
+    images: [render, ...references.slice(0, 3)],
+  });
+  return {
+    same_person: !!res.same_person,
+    score: Math.max(0, Math.min(10, Number(res.score) || 0)),
+    mismatches: (res.mismatches ?? []).slice(0, 6),
+  };
 }

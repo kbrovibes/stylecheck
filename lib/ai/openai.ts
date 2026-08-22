@@ -77,6 +77,9 @@ export async function openaiImageEdit(opts: {
   form.append("prompt", opts.prompt.slice(0, 30000));
   form.append("size", "1024x1536");
   form.append("quality", "high");
+  // Face-preservation lever for gpt-image-1/1.5 edits (gpt-image-2 rejects it:
+  // high fidelity is its default).
+  if (/^gpt-image-1/.test(opts.model)) form.append("input_fidelity", "high");
   for (const [i, img] of opts.images.slice(0, 10).entries()) {
     const bytes = Buffer.from(img.data, "base64");
     form.append(

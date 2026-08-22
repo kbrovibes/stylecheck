@@ -1,8 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Outfit, Person, Settings, UserPhoto, WardrobeItem } from "@/lib/types";
-import { renderOutfitImage, resolvePersonModel, type ImageInput } from "@/lib/ai";
+import {
+  renderOutfitImage,
+  resolvePersonModel,
+  verifyFaceMatch,
+  type ImageInput,
+} from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
 import { toJpegBase64 } from "@/lib/img-server";
+
+/** Below this face-match score a GPT render gets one corrective retake. */
+const FACE_MATCH_MIN = 7;
 
 const KIND_ORDER: Record<string, number> = {
   full_body: 0,
@@ -72,12 +80,14 @@ export async function renderOutfitRecord(
       )
     );
 
-    await supabase
-      .from("sc_outfits")
-      .update({ render_status: "pending" })
-      .eq("id", outfit.id);
+    if (!opts?.recordOnly) {
+      await supabase
+        .from("sc_outfits")
+        .update({ render_status: "pending" })
+        .eq("id", outfit.id);
+    }
 
-    const image = await renderOutfitImage(settings, {
+    const renderOpts = {
       profile: person,
       personImages,
       itemImages,
@@ -88,7 +98,40 @@ export async function renderOutfitRecord(
       identityPhotos,
       identityNotes: person.identity_notes,
       modelOverride: opts?.modelOverride,
-    });
+    };
+    const usedModel = resolvePersonModel(settings, opts?.modelOverride);
+    let image = await renderOutfitImage(settings, renderOpts);
+
+    // GPT renders get an independent face-match review against the real
+    // photos, with one corrective retake — likeness is the whole product.
+    let faceNote = "";
+    if (usedModel.startsWith("gpt") && identityPhotos.length) {
+      const judge = (img: ImageInput) =>
+        verifyFaceMatch(settings, img, identityPhotos).catch((e) => {
+          console.error("face-match check failed:", e);
+          return null;
+        });
+      let check = await judge(image);
+      let retook = false;
+      if (check && check.score < FACE_MATCH_MIN) {
+        try {
+          const retry = await renderOutfitImage(settings, {
+            ...renderOpts,
+            faceFixNotes: check.mismatches,
+          });
+          const retryCheck = await judge(retry);
+          if (retryCheck && retryCheck.score >= check.score) {
+            image = retry;
+            check = retryCheck;
+            retook = true;
+          }
+        } catch (e) {
+          console.error("face-fix retake failed:", e);
+        }
+      }
+      if (check)
+        faceNote = ` · face-match ${check.score}/10${retook ? " after retake" : ""}`;
+    }
 
     const jpeg = await toJpegBase64(image.data);
     const path = await uploadBase64(
@@ -98,7 +141,6 @@ export async function renderOutfitRecord(
       jpeg.mimeType
     );
 
-    const usedModel = resolvePersonModel(settings, opts?.modelOverride);
     await supabase.from("sc_renders").insert({
       user_id: writerUserId,
       person_id: outfit.person_id ?? person.id,
@@ -106,7 +148,7 @@ export async function renderOutfitRecord(
       subject_id: outfit.id,
       storage_path: path,
       model: usedModel,
-      prompt_summary: outfit.title,
+      prompt_summary: `${outfit.title ?? "fit"}${faceNote}`,
     });
     // Casual re-renders shouldn't pile up: retire prior renders of this type
     // for this fit (soft delete — files are kept, per the never-delete policy).
@@ -135,10 +177,12 @@ export async function renderOutfitRecord(
 
     return path;
   } catch (e) {
-    await supabase
-      .from("sc_outfits")
-      .update({ render_status: "failed" })
-      .eq("id", outfit.id);
+    if (!opts?.recordOnly) {
+      await supabase
+        .from("sc_outfits")
+        .update({ render_status: "failed" })
+        .eq("id", outfit.id);
+    }
     throw e;
   }
 }

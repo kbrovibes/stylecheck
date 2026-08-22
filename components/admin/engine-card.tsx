@@ -10,7 +10,8 @@ const IMAGE_MODELS = ["gemini-3-pro-image-preview", "gemini-2.5-flash-image"];
 const PERSON_MODELS = [
   { id: "gemini-3-pro-image-preview", label: "Gemini 3 Pro (default)" },
   { id: "gemini-2.5-flash-image", label: "Gemini Flash" },
-  { id: "gpt-image-1", label: "OpenAI GPT Image" },
+  { id: "gpt-image-1.5", label: "OpenAI GPT Image 1.5" },
+  { id: "gpt-image-1", label: "OpenAI GPT Image 1" },
 ];
 
 const selectCls =
