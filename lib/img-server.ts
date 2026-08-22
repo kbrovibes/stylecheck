@@ -17,17 +17,17 @@ export async function toJpegBase64(
 
 /**
  * Catalogue alignment: trim the shot's white margins, then place the garment on
- * a fixed 1000px white square filling ~76% of the frame, centered. Every tile
+ * a fixed 1000px white square filling ~90% of the frame, centered. Every tile
  * ends up with identical scale and padding, like a real retail catalogue.
  */
 export async function normalizeProductShot(base64: string): Promise<{ data: string; mimeType: string }> {
   const src = sharp(Buffer.from(base64, "base64"));
   const trimmed = await src
     .flatten({ background: "#ffffff" })
-    .trim({ threshold: 18 })
+    .trim({ threshold: 45 })
     .toBuffer();
   const CANVAS = 1000;
-  const BOX = Math.round(CANVAS * 0.76);
+  const BOX = Math.round(CANVAS * 0.9); // garment fills ~90% — just a little breathing room
   const inner = await sharp(trimmed)
     .resize(BOX, BOX, { fit: "inside", withoutEnlargement: false })
     .toBuffer();
