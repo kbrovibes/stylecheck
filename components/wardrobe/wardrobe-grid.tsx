@@ -178,11 +178,20 @@ export default function WardrobeGrid({
       </div>
 
       {selecting && (
-        <div className="sheet-up mb-8 rounded-2xl border border-camel/30 bg-camel/10 px-5 py-4 text-[14px] leading-relaxed text-camel-deep">
-          <span className="font-semibold">You&rsquo;re building a fit.</span>{" "}
-          Tap the pieces you want to wear — at least a top and a bottom, plus
-          anything else you like. Then hit{" "}
-          <span className="font-semibold">Render my fit</span> in the bar below.
+        <div className="sheet-up mb-8 flex items-center justify-between gap-4 rounded-2xl border border-camel/30 bg-camel/10 px-5 py-4">
+          <p className="text-[14px] leading-relaxed text-camel-deep">
+            <span className="font-semibold">You&rsquo;re building a fit.</span>{" "}
+            Tap the pieces you want to wear — at least a top and a bottom, plus
+            anything else you like. Then hit{" "}
+            <span className="font-semibold">Render my fit</span> in the bar
+            below.
+          </p>
+          <button
+            onClick={reset}
+            className="shrink-0 rounded-full border border-camel/40 bg-paper px-4 py-1.5 text-[13px] font-medium text-camel-deep transition-colors hover:bg-ivory"
+          >
+            Cancel
+          </button>
         </div>
       )}
 

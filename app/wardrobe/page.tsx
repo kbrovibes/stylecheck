@@ -148,17 +148,6 @@ export default async function WardrobePage({
         />
       ) : (
         <>
-          {editable && (
-            <div className="mb-10 flex justify-center">
-              <Link
-                href="/wardrobe?build=1"
-                className="rounded-full bg-camel px-8 py-3 text-[14px] font-medium tracking-tight text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-xl hover:shadow-camel/40"
-              >
-                Build my own fit
-              </Link>
-            </div>
-          )}
-
           {/* Category chips */}
           <div className="mb-8 flex flex-wrap items-center gap-2">
             <Link
@@ -203,6 +192,17 @@ export default async function WardrobePage({
                   {b.label} · {b.count}
                 </Link>
               ))}
+            </div>
+          )}
+
+          {editable && build !== "1" && (
+            <div className="mb-8 flex justify-center">
+              <Link
+                href="/wardrobe?build=1"
+                className="rounded-full bg-camel px-8 py-3 text-[14px] font-medium tracking-tight text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-xl hover:shadow-camel/40"
+              >
+                Build my own fit
+              </Link>
             </div>
           )}
 
