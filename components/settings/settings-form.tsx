@@ -3,21 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card } from "@/components/ui";
-import type { Provider, Settings } from "@/lib/types";
+import type { Settings } from "@/lib/types";
 
-const MODEL_OPTIONS: Record<
-  Provider,
-  { text: string[]; image: string[] }
-> = {
-  gemini: {
-    text: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview"],
-    image: ["gemini-2.5-flash-image", "gemini-3-pro-image-preview"],
-  },
-  openai: {
-    text: ["gpt-4o", "gpt-5"],
-    image: ["gpt-image-1"],
-  },
-};
 
 function Toggle({
   checked,
@@ -83,11 +70,9 @@ function ToggleRow({
 
 export default function SettingsForm({
   settings,
-  openaiConfigured,
-}: {
+  }: {
   settings: Settings;
-  openaiConfigured: boolean;
-}) {
+  }) {
   const router = useRouter();
   const [s, setS] = useState(settings);
   const [saving, setSaving] = useState(false);
@@ -97,14 +82,6 @@ export default function SettingsForm({
     setS((prev) => ({ ...prev, [key]: value }));
   }
 
-  function switchProvider(p: Provider) {
-    setS((prev) => ({
-      ...prev,
-      provider: p,
-      text_model: MODEL_OPTIONS[p].text[0],
-      image_model: MODEL_OPTIONS[p].image[0],
-    }));
-  }
 
   async function save() {
     setSaving(true);
@@ -113,9 +90,6 @@ export default function SettingsForm({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        provider: s.provider,
-        text_model: s.text_model,
-        image_model: s.image_model,
         generate_accessories: s.generate_accessories,
         generate_shoes: s.generate_shoes,
         generate_belts: s.generate_belts,
@@ -129,71 +103,8 @@ export default function SettingsForm({
     if (res.ok) router.refresh();
   }
 
-  const selectCls =
-    "w-full rounded-xl border hairline bg-ivory px-4 py-2.5 text-[14px] outline-none focus:border-camel/60 focus:bg-paper";
-
   return (
     <div className="space-y-6">
-      <Card>
-        <p className="eyebrow mb-4">Model provider</p>
-        <div className="flex rounded-full border hairline bg-ivory p-1">
-          {(["gemini", "openai"] as Provider[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => switchProvider(p)}
-              className={`flex-1 rounded-full py-2 text-[13px] font-medium capitalize transition-all ${
-                s.provider === p
-                  ? "bg-ink text-ivory"
-                  : "text-ink-soft hover:text-ink"
-              }`}
-            >
-              {p === "gemini" ? "Gemini" : "OpenAI"}
-            </button>
-          ))}
-        </div>
-        {s.provider === "openai" && !openaiConfigured && (
-          <p className="mt-3 text-[12px] leading-relaxed text-camel-deep">
-            OPENAI_API_KEY isn&apos;t configured yet — generation will fail until
-            it&apos;s added to the environment. Your Gemini setup keeps working if
-            you switch back.
-          </p>
-        )}
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="eyebrow mb-1.5 block">Text & vision model</label>
-            <input
-              className={selectCls}
-              list="text-models"
-              value={s.text_model}
-              onChange={(e) => set("text_model", e.target.value)}
-            />
-            <datalist id="text-models">
-              {MODEL_OPTIONS[s.provider].text.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label className="eyebrow mb-1.5 block">Image model</label>
-            <input
-              className={selectCls}
-              list="image-models"
-              value={s.image_model}
-              onChange={(e) => set("image_model", e.target.value)}
-            />
-            <datalist id="image-models">
-              {MODEL_OPTIONS[s.provider].image.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          </div>
-        </div>
-        <p className="mt-3 text-[12px] text-ink-faint">
-          Every render is stamped with the model that made it, so you can switch
-          models and compare side by side — nothing is ever overwritten.
-        </p>
-      </Card>
-
       <Card>
         <p className="eyebrow mb-2">Pieces to style into fits</p>
         <div className="divide-y divide-hairline">
