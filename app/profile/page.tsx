@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { canManage, getActivePerson } from "@/lib/person";
+import { getOrCreateSettings } from "@/lib/account";
 import { getWeather } from "@/lib/weather";
 import { imgUrl, imgUrls } from "@/lib/storage";
 import { computeCoverage } from "@/lib/coverage";
@@ -22,6 +23,7 @@ export default async function ProfilePage() {
 
   const { person, role } = await getActivePerson(supabase, user);
   const readOnly = !canManage(role);
+  const pageSettings = await getOrCreateSettings(supabase, user.id);
 
   const [{ data: photosData }, { data: rendersData }] = await Promise.all([
     supabase
