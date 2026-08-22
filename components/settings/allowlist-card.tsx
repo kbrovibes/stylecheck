@@ -55,7 +55,7 @@ export default function AllowlistCard() {
     <Card className="mt-8">
       <p className="eyebrow mb-1">Invites</p>
       <p className="mb-4 text-[13px] leading-relaxed text-ink-soft">
-        Hanger Management is invite-only — only these emails can sign in.
+        Invite gate is currently OFF — anyone can sign in. This list takes effect again when the gate is re-enabled.
       </p>
       <div className="flex gap-2">
         <input
