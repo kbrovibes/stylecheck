@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Outfit, Person, Settings, UserPhoto, WardrobeItem } from "@/lib/types";
-import { renderOutfitImage, type ImageInput } from "@/lib/ai";
+import { renderOutfitImage, resolvePersonModel, type ImageInput } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
 import { toJpegBase64 } from "@/lib/img-server";
 
@@ -22,7 +22,7 @@ export async function renderOutfitRecord(
   outfit: Outfit,
   person: Person,
   settings: Settings,
-  opts?: { goofy?: boolean }
+  opts?: { goofy?: boolean; modelOverride?: string | null; recordOnly?: boolean }
 ) {
   try {
     const { data: photosData } = await supabase
@@ -87,6 +87,7 @@ export async function renderOutfitRecord(
       goofy: !!opts?.goofy,
       identityPhotos,
       identityNotes: person.identity_notes,
+      modelOverride: opts?.modelOverride,
     });
 
     const jpeg = await toJpegBase64(image.data);
@@ -97,13 +98,14 @@ export async function renderOutfitRecord(
       jpeg.mimeType
     );
 
+    const usedModel = resolvePersonModel(settings, opts?.modelOverride);
     await supabase.from("sc_renders").insert({
       user_id: writerUserId,
       person_id: outfit.person_id ?? person.id,
       subject_type: opts?.goofy ? "outfit_goofy" : "outfit",
       subject_id: outfit.id,
       storage_path: path,
-      model: settings.image_model,
+      model: usedModel,
       prompt_summary: outfit.title,
     });
     // Casual re-renders shouldn't pile up: retire prior renders of this type
@@ -113,20 +115,23 @@ export async function renderOutfitRecord(
       .update({ deleted: true })
       .eq("subject_type", opts?.goofy ? "outfit_goofy" : "outfit")
       .eq("subject_id", outfit.id)
+      .eq("model", usedModel) // history keeps the latest take PER MODEL
       .eq("deleted", false)
       .neq("storage_path", path);
-    await supabase
-      .from("sc_outfits")
-      .update(
-        opts?.goofy
-          ? { goofy_render_path: path, render_status: "done" }
-          : {
-              render_path: path,
-              render_status: "done",
-              render_model: settings.image_model,
-            }
-      )
-      .eq("id", outfit.id);
+    if (!opts?.recordOnly) {
+      await supabase
+        .from("sc_outfits")
+        .update(
+          opts?.goofy
+            ? { goofy_render_path: path, render_status: "done" }
+            : {
+                render_path: path,
+                render_status: "done",
+                render_model: usedModel,
+              }
+        )
+        .eq("id", outfit.id);
+    }
 
     return path;
   } catch (e) {

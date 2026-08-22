@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Settings, WardrobeItem } from "@/lib/types";
 import { generateCatalogImage } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
-import { toJpegBase64 } from "@/lib/img-server";
+import { normalizeProductShot } from "@/lib/img-server";
 
 /** Generate + persist a clean product shot for one item. */
 export async function generateCatalogShotForItem(
@@ -19,7 +19,7 @@ export async function generateCatalogShotForItem(
       ? { ...settings, image_model: "gemini-2.5-flash-image" }
       : settings;
   const shot = await generateCatalogImage(shotSettings, original, item, hint);
-  const jpeg = await toJpegBase64(shot.data, 90);
+  const jpeg = await normalizeProductShot(shot.data);
   const path = `${userId}/catalog/${item.id}-${Date.now()}.${extFromMime(jpeg.mimeType)}`;
   await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
   await supabase

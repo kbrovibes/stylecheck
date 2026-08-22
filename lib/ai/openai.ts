@@ -64,3 +64,33 @@ export async function openaiImage(opts: {
   const json = await res.json();
   return { data: json.data[0].b64_json, mimeType: "image/png" };
 }
+
+/** gpt-image-1 edits endpoint: reference images + prompt (identity-capable). */
+export async function openaiImageEdit(opts: {
+  model: string;
+  prompt: string;
+  images: ImageInput[];
+}): Promise<{ data: string; mimeType: string }> {
+  assertKey();
+  const form = new FormData();
+  form.append("model", opts.model);
+  form.append("prompt", opts.prompt.slice(0, 30000));
+  form.append("size", "1024x1536");
+  form.append("quality", "high");
+  for (const [i, img] of opts.images.slice(0, 10).entries()) {
+    const bytes = Buffer.from(img.data, "base64");
+    form.append(
+      "image[]",
+      new Blob([new Uint8Array(bytes)], { type: img.mimeType }),
+      `ref-${i}.${img.mimeType.includes("png") ? "png" : "jpg"}`
+    );
+  }
+  const res = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`OpenAI edit error ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const json = await res.json();
+  return { data: json.data[0].b64_json, mimeType: "image/png" };
+}

@@ -6,7 +6,7 @@ import { getOrCreateSettings } from "@/lib/account";
 import { canManage, getActivePerson } from "@/lib/person";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
 import { classifyImage, generateCatalogImage } from "@/lib/ai";
-import { toJpegBase64 } from "@/lib/img-server";
+import { normalizeProductShot } from "@/lib/img-server";
 import type { ItemAnalysis } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
           if (!item || item.catalog_image_path) continue;
           const original = await downloadAsImageInput(supabase, item.original_image_path);
           const shot = await generateCatalogImage(settings, original, item);
-          const jpeg = await toJpegBase64(shot.data, 90);
+          const jpeg = await normalizeProductShot(shot.data);
           const path = `${user.id}/catalog/${item.id}-${Date.now()}.${extFromMime(jpeg.mimeType)}`;
           await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
           await supabase

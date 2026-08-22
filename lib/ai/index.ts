@@ -16,7 +16,7 @@ import {
   type ImageInput,
   type MixedPart,
 } from "./gemini";
-import { openaiImage, openaiJson } from "./openai";
+import { openaiImage, openaiImageEdit, openaiJson } from "./openai";
 import {
   BASE_RENDER_PROMPT,
   IDENTITY_NOTES_PROMPT,
@@ -30,6 +30,22 @@ import {
 } from "./prompts";
 
 export type { ImageInput };
+
+export const PERSON_IMAGE_MODELS = [
+  "gemini-3-pro-image-preview",
+  "gemini-2.5-flash-image",
+  "gpt-image-1",
+] as const;
+
+/** Model used for renders OF PEOPLE (mannequin, fits). Wardrobe/scene stay Gemini. */
+export function resolvePersonModel(settings: Settings, override?: string | null) {
+  return override ?? settings.person_image_model ?? settings.image_model;
+}
+
+/** The comparison model from the other family. */
+export function altPersonModel(model: string) {
+  return model.startsWith("gpt") ? "gemini-3-pro-image-preview" : "gpt-image-1";
+}
 
 function jsonCall<T>(settings: Settings) {
   return settings.provider === "openai"
@@ -128,12 +144,15 @@ export async function generateBaseRender(
   settings: Settings,
   profile: BodyProfile,
   photos: ImageInput[],
-  adjustments?: RenderAdjustments | null
+  adjustments?: RenderAdjustments | null,
+  modelOverride?: string | null
 ) {
-  return imageCall(settings)(
-    BASE_RENDER_PROMPT(profile, photos.length, adjustments),
-    photos
-  );
+  const model = resolvePersonModel(settings, modelOverride);
+  const prompt = BASE_RENDER_PROMPT(profile, photos.length, adjustments);
+  if (model.startsWith("gpt")) {
+    return openaiImageEdit({ model, prompt, images: photos });
+  }
+  return geminiImage({ model, prompt, images: photos });
 }
 
 export async function renderOutfitImage(
@@ -148,16 +167,25 @@ export async function renderOutfitImage(
     goofy?: boolean; // comedy pose, identity still locked
     identityPhotos?: ImageInput[]; // REAL photos grounding the face each render
     identityNotes?: string | null; // stored identity passport
+    modelOverride?: string | null;
   }
 ) {
-  if (settings.provider === "openai") {
-    return openaiImage({
-      model: settings.image_model,
-      prompt: renderOutfitPrompt({
-        ...opts,
-        personImageCount: opts.personImages.length,
-      }),
-      images: [...opts.personImages, ...opts.itemImages],
+  const model = resolvePersonModel(settings, opts.modelOverride);
+  if (model.startsWith("gpt")) {
+    // gpt-image-1 edits: base render first, then identity photos + items.
+    return openaiImageEdit({
+      model,
+      prompt: opts.editBase
+        ? outfitEditPrompt({
+            ...opts,
+            identityPhotoCount: opts.identityPhotos?.length ?? 0,
+          })
+        : renderOutfitPrompt({ ...opts, personImageCount: opts.personImages.length }),
+      images: [
+        ...opts.personImages,
+        ...(opts.identityPhotos ?? []),
+        ...opts.itemImages,
+      ],
     });
   }
 
@@ -208,5 +236,5 @@ export async function renderOutfitImage(
           }),
         },
       ];
-  return geminiImageParts({ model: settings.image_model, parts });
+  return geminiImageParts({ model, parts });
 }

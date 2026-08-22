@@ -4,6 +4,7 @@ import { PageTitle } from "@/components/ui";
 import SettingsForm from "@/components/settings/settings-form";
 import AdminPanel, { type AdminStats } from "@/components/settings/admin-panel";
 import AllowlistCard from "@/components/settings/allowlist-card";
+import PersonImageCard from "@/components/settings/person-image-card";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function SettingsPage() {
     <div className="fade-up mx-auto max-w-2xl">
       <PageTitle eyebrow="Settings" title="Tune your" accent="stylist" />
       <SettingsForm settings={settings} openaiConfigured={openaiConfigured} />
+      {adminStats && <PersonImageCard settings={settings} />}
       {adminStats && <AdminPanel stats={adminStats} />}
       {adminStats && <AllowlistCard />}
     </div>

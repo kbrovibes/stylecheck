@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { canManage, getActivePerson } from "@/lib/person";
-import { generateBaseRender, generateIdentityNotes } from "@/lib/ai";
+import { altPersonModel, generateBaseRender, generateIdentityNotes, resolvePersonModel } from "@/lib/ai";
 import { generateFaceAvatar } from "@/lib/avatar";
 import { toJpegBase64 } from "@/lib/img-server";
 import { downloadAsImageInput, imgUrl, uploadBase64 } from "@/lib/storage";
@@ -102,6 +103,29 @@ export async function POST(request: Request) {
     const path = `${user.id}/renders/base-${Date.now()}.jpg`;
     await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
 
+    if (settings.alt_render_async && !preview) {
+      const alt = altPersonModel(resolvePersonModel(settings));
+      after(async () => {
+        try {
+          const altResult = await generateBaseRender(settings, person, images, adjustments, alt);
+          const altJpeg = await toJpegBase64(altResult.data, 90);
+          const altPath = `${user.id}/renders/base-${Date.now()}-alt.jpg`;
+          await uploadBase64(supabase, altPath, altJpeg.data, altJpeg.mimeType);
+          await supabase.from("sc_renders").insert({
+            user_id: user.id,
+            person_id: person.id,
+            subject_type: "profile",
+            subject_id: person.id,
+            storage_path: altPath,
+            model: alt,
+            prompt_summary: "alt-model comparison render",
+          });
+        } catch (e) {
+          console.error("alt base render failed:", e);
+        }
+      });
+    }
+
     const adjSummary = adjustments
       ? ` adj[b${adjustments.build}/s${adjustments.shoulders}/w${adjustments.waist}${adjustments.note ? " +note" : ""}]`
       : "";
@@ -111,7 +135,7 @@ export async function POST(request: Request) {
       subject_type: "profile",
       subject_id: person.id,
       storage_path: path,
-      model: settings.image_model,
+      model: resolvePersonModel(settings),
       prompt_summary: `base render from ${picked.length} photo(s), ${person.height_cm ?? "?"}cm/${person.weight_kg ?? "?"}kg${adjSummary}${preview ? " (preview)" : ""}`,
     });
 

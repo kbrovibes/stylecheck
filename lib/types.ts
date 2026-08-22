@@ -194,6 +194,9 @@ export interface Settings {
   generate_glasses: boolean; // unsupported in v1, kept disabled
   auto_render: boolean;
   goofy_mode: boolean;
+  person_image_model: string;
+  alt_render_async: boolean;
+  show_model_badge: boolean;
   restyle_requested_at: string | null;
   updated_at: string;
 }

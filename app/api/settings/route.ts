@@ -7,6 +7,8 @@ const BOOL_FIELDS = [
   "generate_belts",
   "auto_render",
   "goofy_mode",
+  "alt_render_async",
+  "show_model_badge",
 ] as const;
 
 export async function PATCH(request: Request) {
@@ -33,6 +35,13 @@ export async function PATCH(request: Request) {
     update.text_model = body.text_model.trim();
   if (typeof body.image_model === "string" && body.image_model.trim())
     update.image_model = body.image_model.trim();
+  if (
+    typeof body.person_image_model === "string" &&
+    ["gemini-3-pro-image-preview", "gemini-2.5-flash-image", "gpt-image-1"].includes(
+      body.person_image_model
+    )
+  )
+    update.person_image_model = body.person_image_model;
   for (const f of BOOL_FIELDS) {
     if (f in body) update[f] = !!body[f];
   }

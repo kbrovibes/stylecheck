@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { creditErrorResponse, spendCredit } from "@/lib/credits";
 import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
+import { after } from "next/server";
 import { renderOutfitRecord } from "@/lib/render";
+import { altPersonModel, resolvePersonModel } from "@/lib/ai";
 import type { Outfit, Person } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -71,6 +73,18 @@ export async function POST(
       await renderOutfitRecord(supabase, user.id, outfit, personData as Person, settings);
     }
     const path = await renderOutfitRecord(supabase, user.id, outfit, personData as Person, settings, { goofy });
+    // Admin option: also render with the other model family for comparison
+    // (history-only — the primary pointer stays with the chosen model).
+    if (settings.alt_render_async) {
+      const alt = altPersonModel(resolvePersonModel(settings));
+      after(() =>
+        renderOutfitRecord(supabase, user.id, outfit, personData as Person, settings, {
+          goofy,
+          modelOverride: alt,
+          recordOnly: true,
+        }).catch((e) => console.error("alt render failed:", e))
+      );
+    }
     return NextResponse.json({ render_path: path });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Render failed";

@@ -281,7 +281,7 @@ ${target}${hint?.trim() ? `\nUSER CONTEXT (trust this over your own guess about 
   - Bottoms (jeans, trousers, shorts): ghost-mannequin worn shape, straight-on, full length, waistband at top.
   - Footwear: the PAIR side by side, angled 3/4 view facing left, ground shadow only.
   - Accessories, belts, bags, headwear, eyewear: single centered product shot, natural presentation (belt coiled once, bag upright).
-- Centered on a pure white background (#FFFFFF), generous even margins.
+- Centered on a pure white background (#FFFFFF); the item fills roughly three-quarters of the frame height with even margins.
 - Soft studio lighting, no props, no person, no other items, no text or watermarks.
 - Square aspect ratio.`;
 }

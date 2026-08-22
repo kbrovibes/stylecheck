@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { getOrCreateSettings } from "@/lib/account";
 import { generateCatalogImage, reclassifyItem } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
-import { toJpegBase64 } from "@/lib/img-server";
+import { normalizeProductShot } from "@/lib/img-server";
 import type { WardrobeItem } from "@/lib/types";
 
 export const maxDuration = 120;
@@ -82,7 +82,7 @@ export async function POST(
       }
     }
     const result = await generateCatalogImage(settings, original, item, hint);
-    const jpeg = await toJpegBase64(result.data, 90);
+    const jpeg = await normalizeProductShot(result.data);
     const path = `${user.id}/catalog/${item.id}-${Date.now()}.${extFromMime(jpeg.mimeType)}`;
     await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
 

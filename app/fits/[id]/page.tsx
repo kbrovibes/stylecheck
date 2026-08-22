@@ -53,9 +53,11 @@ export default async function FitDetailPage({
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  const goofyMode = authUser
-    ? (await getOrCreateSettings(supabase, authUser.id)).goofy_mode
-    : false;
+  const fitSettings = authUser
+    ? await getOrCreateSettings(supabase, authUser.id)
+    : null;
+  const goofyMode = fitSettings?.goofy_mode ?? false;
+  const showModelBadge = fitSettings?.show_model_badge ?? false;
   const displayPath =
     goofyMode && outfit.goofy_render_path
       ? outfit.goofy_render_path
@@ -294,6 +296,7 @@ export default async function FitDetailPage({
                 </div>
                 <div className="mt-2 space-y-1">
                   <Badge>{r.subject_type === "outfit_goofy" ? "goofy" : "classic"}</Badge>
+                  {showModelBadge && <Badge tone="camel">{r.model.replace(/-preview$/, "")}</Badge>}
                   <p className="text-[11px] text-ink-faint">
                     {new Date(r.created_at).toLocaleDateString("en-US", {
                       month: "short",
