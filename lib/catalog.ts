@@ -13,7 +13,12 @@ export async function generateCatalogShotForItem(
   hint?: string | null
 ) {
   const original = await downloadAsImageInput(supabase, item.original_image_path);
-  const shot = await generateCatalogImage(settings, original, item, hint);
+  // Product shots don't need identity fidelity — pin the fast image model.
+  const shotSettings =
+    settings.provider === "gemini"
+      ? { ...settings, image_model: "gemini-2.5-flash-image" }
+      : settings;
+  const shot = await generateCatalogImage(shotSettings, original, item, hint);
   const jpeg = await toJpegBase64(shot.data, 90);
   const path = `${userId}/catalog/${item.id}-${Date.now()}.${extFromMime(jpeg.mimeType)}`;
   await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);

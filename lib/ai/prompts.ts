@@ -276,7 +276,12 @@ export function catalogImagePrompt(
   return `Create a clean e-commerce product photo of one specific item from this photo.
 ${target}${hint?.trim() ? `\nUSER CONTEXT (trust this over your own guess about which item is meant and what it is): ${hint.trim()}` : ""}
 - Same exact item: same color, pattern, fabric and details — do not redesign it. If it is being worn, isolate it off the body.
-- Presented as a professional catalogue shot: neatly laid flat or ghost-mannequin style, centered, on a pure white background (#FFFFFF).
+- PRESENTATION — follow the house style for the item's type EXACTLY (every catalogue image must match this standard):
+  - Tops, shirts, t-shirts, knits, outerwear, dresses/jumpsuits: GHOST-MANNEQUIN style — the garment filled out in its natural worn 3D shape (invisible person), facing straight-on, sleeves relaxed at the sides. Never folded, never flat-lay, never on a hanger.
+  - Bottoms (jeans, trousers, shorts): ghost-mannequin worn shape, straight-on, full length, waistband at top.
+  - Footwear: the PAIR side by side, angled 3/4 view facing left, ground shadow only.
+  - Accessories, belts, bags, headwear, eyewear: single centered product shot, natural presentation (belt coiled once, bag upright).
+- Centered on a pure white background (#FFFFFF), generous even margins.
 - Soft studio lighting, no props, no person, no other items, no text or watermarks.
 - Square aspect ratio.`;
 }

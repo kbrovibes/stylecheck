@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { renderOutfitRecord } from "@/lib/render";
-import type { Outfit, Person, Settings } from "@/lib/types";
+import { generateCatalogShotForItem } from "@/lib/catalog";
+import type { Outfit, Person, Settings, WardrobeItem } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -30,13 +31,74 @@ export async function GET(request: Request) {
   }
   const url = new URL(request.url);
   const goofyBatch = url.searchParams.get("goofy") === "1";
+  const catalogBatch = url.searchParams.get("catalog") === "1";
   const before = url.searchParams.get("before");
-  if (!goofyBatch && (!before || Number.isNaN(Date.parse(before)))) {
+  if (!goofyBatch && !catalogBatch && (!before || Number.isNaN(Date.parse(before)))) {
     return NextResponse.json({ error: "before=<ISO timestamp> required" }, { status: 400 });
   }
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 3, 1), 8);
 
   const admin = createAdminClient();
+
+  // Catalogue uniformity batch: re-shoot garment product shots in the house
+  // style. Cutoff (?before=) marks which items are already done, so the chain
+  // is resumable and idempotent.
+  if (catalogBatch) {
+    const cutoff = before && !Number.isNaN(Date.parse(before)) ? Date.parse(before) : Date.now();
+    const { data: itemsData } = await admin
+      .from("sc_wardrobe_items")
+      .select("*")
+      .eq("deleted", false)
+      .in("category", ["top", "bottom", "outerwear", "full_body"])
+      .order("created_at", { ascending: true });
+    const items = (itemsData ?? []) as WardrobeItem[];
+    const { data: shotRenders } = await admin
+      .from("sc_renders")
+      .select("subject_id, created_at")
+      .eq("subject_type", "item_catalog")
+      .order("created_at", { ascending: false });
+    const latestShot = new Map<string, string>();
+    for (const r of shotRenders ?? []) {
+      if (r.subject_id && !latestShot.has(r.subject_id)) latestShot.set(r.subject_id, r.created_at);
+    }
+    const queue = items.filter((i) => {
+      const last = latestShot.get(i.id);
+      return !last || Date.parse(last) < cutoff;
+    });
+    const settingsCache = new Map<string, Settings>();
+    const results: Record<string, string> = {};
+    for (const item of queue.slice(0, limit)) {
+      try {
+        if (!settingsCache.has(item.user_id)) {
+          const { data: st } = await admin
+            .from("sc_settings").select("*").eq("user_id", item.user_id).maybeSingle();
+          settingsCache.set(item.user_id, (st ?? {
+            provider: "gemini",
+            text_model: "gemini-2.5-flash",
+            image_model: "gemini-2.5-flash-image",
+          }) as Settings);
+        }
+        await generateCatalogShotForItem(admin, item.user_id, item, settingsCache.get(item.user_id)!);
+        results[item.id] = "done";
+      } catch (e) {
+        results[item.id] = `failed: ${(e as Error).message.slice(0, 100)}`;
+      }
+    }
+    const remaining = Math.max(0, queue.length - limit);
+    const depth = Number(url.searchParams.get("depth")) || 0;
+    if (remaining > 0 && depth < 60) {
+      const next = new URL(request.url);
+      next.searchParams.set("depth", String(depth + 1));
+      next.searchParams.set("before", new Date(cutoff).toISOString());
+      after(async () => {
+        await fetch(next.toString(), {
+          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        }).catch(() => {});
+      });
+    }
+    return NextResponse.json({ mode: "catalog", processed: Object.keys(results).length, remaining, results, depth });
+  }
+
   const { data: outfitsData } = await admin
     .from("sc_outfits")
     .select("*")
