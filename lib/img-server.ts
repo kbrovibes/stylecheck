@@ -16,6 +16,34 @@ export async function toJpegBase64(
 }
 
 /**
+ * Dominant garment color from a product shot on white: quantize non-background
+ * pixels to coarse buckets and average the biggest bucket. Null when the image
+ * is essentially all white (detection failed / white garment edge case).
+ */
+export async function dominantColorHex(base64: string): Promise<string | null> {
+  const { data, info } = await sharp(Buffer.from(base64, "base64"))
+    .flatten({ background: "#ffffff" })
+    .resize(64, 64, { fit: "inside" })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const counts = new Map<number, { n: number; r: number; g: number; b: number }>();
+  for (let i = 0; i < data.length; i += info.channels) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (r > 235 && g > 235 && b > 235) continue; // white background
+    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const e = counts.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+    e.n++; e.r += r; e.g += g; e.b += b;
+    counts.set(key, e);
+  }
+  let best: { n: number; r: number; g: number; b: number } | null = null;
+  for (const e of counts.values()) if (!best || e.n > best.n) best = e;
+  if (!best || best.n < 20) return null;
+  const hex = (sum: number) =>
+    Math.round(sum / best!.n).toString(16).padStart(2, "0");
+  return `#${hex(best.r)}${hex(best.g)}${hex(best.b)}`;
+}
+
+/**
  * Catalogue alignment: trim the shot's white margins, then place the garment on
  * a fixed 1000px white square filling ~90% of the frame, centered. Every tile
  * ends up with identical scale and padding, like a real retail catalogue.

@@ -53,13 +53,31 @@ export default async function WardrobePage({
       fitCounts.set(iid, (fitCounts.get(iid) ?? 0) + 1);
   }
   // Catalogue order: by garment type, like a store — tops before bottoms,
-  // then layers; newest first within a type (DB order, sort is stable).
+  // then layers; within a type, a color gradient (hue wheel, then neutrals
+  // light→dark) so the rack reads like a curated closet, not a shuffle.
   const TYPE_ORDER: Record<string, number> = {
     top: 0, bottom: 1, outerwear: 2, full_body: 3,
     footwear: 4, accessory: 5, belt: 6, bag: 7, headwear: 8, eyewear: 9,
   };
+  const colorKey = (hex: string | null): number => {
+    if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return 999;
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    const d = max - min;
+    const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    if (s < 0.14) return 500 + (1 - l) * 100; // neutrals: white → black, after colors
+    let h =
+      max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+    return h;
+  };
   const allItems = ((data ?? []) as WardrobeItem[]).sort(
-    (a, b) => (TYPE_ORDER[a.category] ?? 99) - (TYPE_ORDER[b.category] ?? 99)
+    (a, b) =>
+      (TYPE_ORDER[a.category] ?? 99) - (TYPE_ORDER[b.category] ?? 99) ||
+      colorKey(a.color_hex) - colorKey(b.color_hex)
   );
   const counts = allItems.reduce<Record<string, number>>((acc, i) => {
     acc[i.category] = (acc[i.category] ?? 0) + 1;
@@ -192,17 +210,6 @@ export default async function WardrobePage({
                   {b.label} · {b.count}
                 </Link>
               ))}
-            </div>
-          )}
-
-          {editable && build !== "1" && (
-            <div className="mb-8 flex justify-center">
-              <Link
-                href="/wardrobe?build=1"
-                className="rounded-full bg-camel px-8 py-3 text-[14px] font-medium tracking-tight text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-xl hover:shadow-camel/40"
-              >
-                Build my own fit
-              </Link>
             </div>
           )}
 

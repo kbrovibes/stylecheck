@@ -127,6 +127,7 @@ export interface WardrobeItem {
   name: string | null;
   description: string | null;
   colors: string[];
+  color_hex: string | null; // dominant color sampled from the catalogue shot
   primary_color: string | null;
   pattern: string | null;
   material: string | null;

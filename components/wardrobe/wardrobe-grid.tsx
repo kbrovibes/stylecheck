@@ -177,6 +177,17 @@ export default function WardrobeGrid({
         </p>
       </div>
 
+      {selectable && !selecting && (
+        <div className="mb-8 flex justify-center">
+          <button
+            onClick={() => setSelecting(true)}
+            className="rounded-full bg-camel px-8 py-3 text-[14px] font-medium tracking-tight text-ivory shadow-lg shadow-camel/30 transition-all hover:bg-camel-deep hover:shadow-xl hover:shadow-camel/40"
+          >
+            Build my own fit
+          </button>
+        </div>
+      )}
+
       {selecting && (
         <div className="sheet-up mb-8 flex items-center justify-between gap-4 rounded-2xl border border-camel/30 bg-camel/10 px-5 py-4">
           <p className="text-[14px] leading-relaxed text-camel-deep">

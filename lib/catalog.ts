@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Settings, WardrobeItem } from "@/lib/types";
 import { generateCatalogImage } from "@/lib/ai";
 import { downloadAsImageInput, extFromMime, uploadBase64 } from "@/lib/storage";
-import { normalizeProductShot } from "@/lib/img-server";
+import { dominantColorHex, normalizeProductShot } from "@/lib/img-server";
 
 /** Generate + persist a clean product shot for one item. */
 export async function generateCatalogShotForItem(
@@ -22,9 +22,10 @@ export async function generateCatalogShotForItem(
   const jpeg = await normalizeProductShot(shot.data);
   const path = `${userId}/catalog/${item.id}-${Date.now()}.${extFromMime(jpeg.mimeType)}`;
   await uploadBase64(supabase, path, jpeg.data, jpeg.mimeType);
+  const colorHex = await dominantColorHex(jpeg.data).catch(() => null);
   await supabase
     .from("sc_wardrobe_items")
-    .update({ catalog_image_path: path, catalog_source: "generated" })
+    .update({ catalog_image_path: path, catalog_source: "generated", color_hex: colorHex })
     .eq("id", item.id);
   await supabase.from("sc_renders").insert({
     user_id: userId,
