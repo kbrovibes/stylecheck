@@ -525,10 +525,21 @@ footer{border-top:1px solid var(--hairline);background:var(--surface-2);padding:
 
     function goTo(i, smooth) {
       var n = (i + slides.length) % slides.length;
+      var target = n * track.clientWidth;
+      var from = track.scrollLeft;
       track.scrollTo({
-        left: n * track.clientWidth,
+        left: target,
         behavior: smooth && !reduce.matches ? "smooth" : "auto"
       });
+      /* Some browsers ignore smooth scrolling inside a snap container.
+         If nothing has moved shortly after, jump there instead. */
+      if (smooth) {
+        setTimeout(function () {
+          if (track.scrollLeft === from && Math.abs(target - from) > 4) {
+            track.scrollLeft = target;
+          }
+        }, 260);
+      }
       paint(n);
     }
 
