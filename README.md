@@ -4,7 +4,7 @@
 
 **Your wardrobe, styled.** A personal AI stylist that catalogues every piece you own,<br/>knows your build, your age, and today's weather — and shows you wearing the outfit<br/>*before you get dressed.*
 
-[**hangermanagement.vercel.app**](https://hangermanagement.vercel.app)
+[**Open the app →**](https://hangermanagement.vercel.app) · [**Project page →**](https://kbrovibes.github.io/stylecheck/)
 
 ![Next.js 16](https://img.shields.io/badge/Next.js%2016-111?logo=nextdotjs&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-111?logo=supabase&logoColor=3ECF8E)

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>Hanger Management — your wardrobe, rendered on you</title>
+<meta name="description" content="A personal stylist for the clothes you already own. Photograph your wardrobe, and see yourself wearing the outfit before you get dressed.">
+<meta name="author" content="Karthik Rajan">
+<meta name="color-scheme" content="light">
+
+<link rel="canonical" href="https://kbrovibes.github.io/stylecheck/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kbrovibes.github.io/stylecheck/">
+<meta property="og:title" content="Hanger Management — your wardrobe, rendered on you">
+<meta property="og:description" content="A personal stylist for the clothes you already own. See yourself wearing the outfit before you get dressed.">
+<meta property="og:image" content="https://kbrovibes.github.io/stylecheck/media/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23A98149'/%3E%3Cg stroke='%2316130F' fill='none' stroke-linecap='round' stroke-linejoin='round' stroke-width='3.6'%3E%3Cpath d='M32 20.5a5 5 0 1 1 5-5c0 3-5 3.6-5 7v1.5'/%3E%3Cpath d='M32 24l22 14.5a3 3 0 0 1-1.9 5.5H11.9a3 3 0 0 1-1.9-5.5L32 24z'/%3E%3C/g%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   THEME TOKENS — derived from stylecheck/app/globals.css (@theme block).
+   ========================================================================== */
+:root{
+  --bg:            #faf8f5;   /* --color-ivory */
+  --surface:       #ffffff;   /* --color-paper */
+  --surface-2:     #f1ede6;   /* shimmer stop, used as the alternating band */
+  --ink:           #16130f;   /* --color-ink */
+  --muted:         #4a443c;   /* --color-ink-soft */
+  --accent:        #7d6138;   /* --color-camel-deep (camel #9a7b4f is fill-only) */
+  --accent-ink:    #faf8f5;
+  --accent-2:      #55654a;   /* --color-moss #6b7c5e, darkened to pass on ivory */
+  --hairline:      #e9e4dc;   /* --color-hairline */
+  --radius:        16px;
+  --shadow:        0 1px 2px rgba(22,19,15,.04), 0 16px 40px -18px rgba(22,19,15,.14);
+  --font-display:  "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-body:     "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:     ui-monospace, SFMono-Regular, Menlo, "Cascadia Mono", monospace;
+  color-scheme:    light;
+}
+/* ==================== end theme tokens ==================================== */
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  font-feature-settings:"ss01","cv11"}
+img,svg{display:block;max-width:100%}
+a{color:inherit}
+h1,h2,h3{margin:0;line-height:1.1;letter-spacing:-.02em;font-weight:600}
+p{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+::selection{background:#ece4d6;color:var(--ink)}
+
+.wrap{max-width:1140px;margin:0 auto;padding:0 24px}
+/* the app's own .eyebrow: 11px / .22em / uppercase */
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-2)}
+.lede{color:var(--muted);font-size:17px;max-width:62ch}
+.band{background:var(--surface-2)}
+section{scroll-margin-top:80px}
+
+.skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:var(--accent-ink);
+  padding:12px 18px;z-index:99;border-radius:0 0 10px 0;font-weight:600}
+.skip:focus{left:0}
+
+/* ---------- buttons / the three link affordances ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;
+  font-size:14px;font-weight:600;text-decoration:none;border:1px solid transparent;
+  transition:background .16s,color .16s,border-color .16s,transform .16s;white-space:nowrap}
+.btn:hover{transform:translateY(-1px)}
+/* inverted primary — the app's own CTA is ink-on-ivory, not camel */
+.btn-primary{background:var(--ink);color:var(--bg)}
+.btn-primary:hover{background:var(--accent);color:var(--accent-ink)}
+.btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--hairline)}
+.btn-ghost:hover{border-color:var(--ink)}
+.btn-quiet{color:var(--muted);padding:11px 10px}
+.btn-quiet:hover{color:var(--ink)}
+.btn svg{width:15px;height:15px;flex:none;fill:currentColor}
+
+/* ---------- header ---------- */
+.site{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 86%,transparent);
+  backdrop-filter:saturate(1.6) blur(12px);border-bottom:1px solid var(--hairline)}
+.site .wrap{display:flex;align-items:center;gap:20px;height:62px}
+/* the app's login wordmark: serif small-caps "HANGER" + serif italic camel "management." */
+.wordmark{font-family:var(--font-display);text-decoration:none;display:flex;align-items:baseline;gap:.3em}
+.wordmark b{font-weight:400;font-size:15px;text-transform:uppercase;letter-spacing:.18em}
+.wordmark span{font-family:var(--font-display);font-style:italic;font-size:17px;color:var(--accent);letter-spacing:0}
+.site nav{display:flex;gap:22px;margin-left:auto;font-size:14px}
+.site nav a{color:var(--muted);text-decoration:none;padding:4px 0;border-bottom:1.5px solid transparent}
+.site nav a:hover{color:var(--ink)}
+.site nav a[aria-current="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.site .links{display:flex;align-items:center;gap:6px;margin-left:auto}
+.site nav + .links{margin-left:16px}
+@media (max-width:900px){.site nav{display:none}.site .links .label-long{display:none}}
+@media (max-width:560px){.site .wrap{gap:10px;padding:0 16px}.btn{padding:9px 13px;font-size:13px}}
+
+/* ---------- hero ---------- */
+.hero{padding:72px 0 24px}
+.hero h1{font-size:clamp(34px,6.2vw,60px);max-width:15ch}
+.hero h1 em{font-family:var(--font-display);font-style:italic;font-weight:400;color:var(--accent)}
+.hero .lede{margin-top:18px;font-size:clamp(16px,2.2vw,19px)}
+.hero .cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px;padding:0;list-style:none}
+.facts li{font-size:12.5px;color:var(--muted);border:1px solid var(--hairline);background:var(--surface);
+  border-radius:999px;padding:5px 12px}
+.hero-shot{margin-top:44px}
+
+/* ---------- image frames ---------- */
+.frame{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+.frame .media{aspect-ratio:16/10;background:var(--surface-2)}
+.frame .media > *{width:100%;height:100%;object-fit:cover;object-position:top center}
+/* photographic frames — the app's own intro art, rounded like its login carousel */
+.frame.photo{border-radius:24px}
+.frame.wide .media{aspect-ratio:16/9;object-position:center}
+.frame.wide .media > *{object-position:center}
+.frame.tall{max-width:400px;margin-inline:auto}
+.frame.tall .media{aspect-ratio:3/4}
+.frame.tall .media > *{object-position:center top}
+.caption{margin-top:12px;font-size:12.5px;color:var(--muted);text-align:center}
+
+/* ---------- generic section head ---------- */
+.head{max-width:70ch}
+.head h2{font-size:clamp(26px,3.6vw,38px);margin-top:10px}
+.head h2 em{font-family:var(--font-display);font-style:italic;font-weight:400;color:var(--accent)}
+.head p{margin-top:14px;color:var(--muted);font-size:17px}
+.pad{padding:76px 0}
+.pad-sm{padding:56px 0}
+
+/* ---------- "what it is" ---------- */
+.what{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:start}
+.what p + p{margin-top:14px}
+.what .prose{font-size:17.5px}
+.what h2{font-size:clamp(26px,3.6vw,38px);margin-top:10px}
+.what h2 em{font-family:var(--font-display);font-style:italic;font-weight:400;color:var(--accent)}
+.forwho{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:22px 24px}
+.forwho h3{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.forwho ul{margin:14px 0 0;padding-left:0;list-style:none;display:grid;gap:12px}
+.forwho li{display:flex;gap:10px;font-size:15px;color:var(--muted)}
+.forwho li b{color:var(--ink);font-weight:600}
+.forwho li::before{content:"";flex:none;width:6px;height:6px;margin-top:9px;border-radius:50%;background:var(--accent)}
+@media (max-width:860px){.what{grid-template-columns:1fr;gap:32px}}
+
+/* ---------- carousel ---------- */
+.tour{padding:76px 0 64px;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+.tour .bar{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;
+  margin-top:34px;gap:0;overscroll-behavior-x:contain}
+.track::-webkit-scrollbar{display:none}
+.slide{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;
+  display:grid;grid-template-columns:.85fr 1.15fr;gap:52px;align-items:center;padding:0 24px}
+.slide .copy h3{font-size:clamp(24px,3.4vw,36px);margin-top:8px}
+.slide .copy h3 em{font-family:var(--font-display);font-style:italic;font-weight:400;color:var(--accent)}
+.slide .copy p{margin-top:14px;color:var(--muted);font-size:16.5px;max-width:44ch}
+.slide .copy ul{margin:18px 0 0;padding-left:0;list-style:none;display:grid;gap:8px;font-size:14.5px;color:var(--muted)}
+.slide .copy li::before{content:"— ";color:var(--accent)}
+.controls{display:flex;align-items:center;gap:14px;margin-top:30px;justify-content:center}
+.dots{display:flex;gap:8px}
+.dot{width:8px;height:8px;padding:0;border:0;border-radius:999px;background:color-mix(in srgb,var(--ink) 22%,transparent);
+  cursor:pointer;transition:width .2s,background .2s}
+.dot[aria-current="true"]{width:26px;background:var(--ink)}
+.arrow,.pause{width:34px;height:34px;display:grid;place-items:center;border-radius:999px;cursor:pointer;
+  border:1px solid var(--hairline);background:var(--surface);color:var(--ink)}
+.arrow:hover,.pause:hover{border-color:var(--ink)}
+.arrow svg,.pause svg{width:14px;height:14px;fill:currentColor}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (max-width:900px){
+  .slide{grid-template-columns:1fr;gap:26px;padding:0 20px}
+  .slide .shot{order:-1}
+  .slide .copy p{max-width:none}
+}
+
+/* ---------- steps ---------- */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;margin-top:38px;
+  background:var(--hairline);border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden}
+.step{background:var(--bg);padding:26px 24px}
+.step .n{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--accent-2);letter-spacing:.08em}
+.step h3{font-size:17px;margin-top:12px}
+.step p{margin-top:8px;font-size:14.5px;color:var(--muted)}
+
+/* ---------- feature grid ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin-top:38px}
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:22px}
+.card h3{font-size:16px;display:flex;align-items:center;gap:9px}
+.card h3 svg{width:16px;height:16px;fill:none;stroke:var(--accent);stroke-width:1.7;flex:none;
+  stroke-linecap:round;stroke-linejoin:round}
+.card p{margin-top:9px;font-size:14.5px;color:var(--muted)}
+
+/* ---------- stack ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px;padding:0;list-style:none}
+.chips li{font-family:var(--font-mono);font-size:12.5px;background:var(--surface);border:1px solid var(--hairline);
+  border-radius:999px;padding:6px 13px;color:var(--muted)}
+.note{margin-top:22px;font-size:14.5px;color:var(--muted);max-width:64ch}
+
+/* ---------- faq ---------- */
+.faq{margin-top:34px;border-top:1px solid var(--hairline);max-width:78ch}
+.faq details{border-bottom:1px solid var(--hairline)}
+.faq summary{cursor:pointer;list-style:none;padding:18px 2px;font-weight:600;font-size:16px;
+  display:flex;justify-content:space-between;gap:16px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:var(--accent);font-weight:400;font-size:20px;line-height:1}
+.faq details[open] summary::after{content:"–"}
+.faq p{padding:0 2px 20px;color:var(--muted);font-size:15.5px;max-width:66ch}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--hairline);background:var(--surface-2);padding:52px 0 40px;margin-top:0}
+.foot{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between;align-items:flex-start}
+.foot .links{display:flex;flex-wrap:wrap;gap:8px}
+.foot small{display:block;color:var(--muted);font-size:13px;line-height:1.7}
+.foot a.plain{color:var(--muted)}
+.foot a.plain:hover{color:var(--ink)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  .btn:hover{transform:none}
+}
+@media (min-width:1px){html{scroll-behavior:smooth}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- ══ HEADER — link affordances #1 ══════════════════════════════════ -->
+<header class="site">
+  <div class="wrap">
+    <a class="wordmark" href="#top"><b>Hanger</b><span>management.</span></a>
+
+    <nav aria-label="Page sections">
+      <a href="#what">What it is</a>
+      <a href="#tour">Tour</a>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <div class="links">
+      <a class="btn btn-primary" href="https://hangermanagement.vercel.app" rel="noopener">Open the app</a>
+      <a class="btn btn-ghost" href="https://github.com/kbrovibes/stylecheck" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span class="label-long">View source</span>
+      </a>
+      <a class="btn btn-quiet" href="https://kbrovibes.github.io/">All projects</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ══ 1. HERO ══════════════════════════════════════════════════════ -->
+<section id="top" class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Personal wardrobe stylist</p>
+    <h1>Your wardrobe, worn by <em>you</em>, before you get dressed.</h1>
+    <p class="lede">For anyone who owns more clothes than outfit ideas. Photograph what you already have; it catalogues every piece, renders your actual body, and shows you the fit before you put it on.</p>
+
+    <div class="cta">
+      <a class="btn btn-primary" href="https://hangermanagement.vercel.app" rel="noopener">Open the app</a>
+      <a class="btn btn-ghost" href="https://github.com/kbrovibes/stylecheck" rel="noopener">View source on GitHub</a>
+      <a class="btn btn-quiet" href="https://kbrovibes.github.io/">← Back to all projects</a>
+    </div>
+
+    <ul class="facts">
+      <li>Next.js 16 · Supabase</li>
+      <li>Rendering by Gemini</li>
+      <li>Invite-only</li>
+      <li>Installs to your home screen</li>
+    </ul>
+
+    <div class="hero-shot frame photo wide">
+      <div class="media">
+        <img src="media/hero.jpg" fetchpriority="high"
+             alt="A neutral walk-in closet: knitwear on a brass rail, a camel overshirt, folded stacks and white sneakers.">
+      </div>
+    </div>
+    <p class="caption">From the app’s own intro art. The home screen composes a scene like this from your real pieces.</p>
+  </div>
+</section>
+
+<!-- ══ 2. WHAT IT IS ═══════════════════════════════════════════════ -->
+<section id="what" class="pad">
+  <div class="wrap what">
+    <div>
+      <p class="eyebrow">What it is</p>
+      <h2>A full closet and still <em>nothing</em> to wear</h2>
+      <div class="prose" style="margin-top:18px">
+        <p>The clothes exist. The problem is remembering them. Half the wardrobe is behind other clothes, the good shirt lives in a drawer you never open, and you end up in the same three outfits because those are the ones you can picture.</p>
+        <p>So you photograph them — worn, hung, or heaped on the bed. Gemini detects each piece, names it, and re-shoots it as a clean catalogue image. Then it composes outfits from what you actually own and renders them on a mannequin built from your own photos. Not a model's.</p>
+      </div>
+    </div>
+    <aside class="forwho">
+      <h3>Who it’s for</h3>
+      <ul>
+        <li><span><b>People with a full closet.</b> Everything you own becomes browsable, so the pieces you forgot about get worn.</span></li>
+        <li><span><b>Households, not just individuals.</b> Several people per account, shared by email as viewer or manager.</span></li>
+        <li><span><b>Not for shoppers.</b> It styles what you already own. Nothing here links to a store or suggests a purchase.</span></li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ══ 3. TOUR ═════════════════════════════════════════════════════ -->
+<section id="tour" class="tour band"
+         aria-roledescription="carousel" aria-label="Product tour">
+  <div class="wrap bar">
+    <div class="head">
+      <p class="eyebrow">Tour</p>
+      <h2>Three steps, then it runs</h2>
+    </div>
+    <div class="controls" style="margin-top:0">
+      <button class="arrow" data-prev type="button" aria-controls="track" aria-label="Previous slide">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2 4.5 8l6 6 1.4-1.4L7.3 8l4.6-4.6z"/></svg></button>
+      <button class="arrow" data-next type="button" aria-controls="track" aria-label="Next slide">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2 4.1 3.4 8.7 8l-4.6 4.6L5.5 14l6-6z"/></svg></button>
+      <button class="pause" data-toggle type="button" aria-label="Pause automatic slide rotation" aria-pressed="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true" data-icon><rect x="4" y="3" width="3" height="10" rx="1"/><rect x="9" y="3" width="3" height="10" rx="1"/></svg></button>
+    </div>
+  </div>
+
+  <div class="track" id="track" tabindex="0" role="group" aria-label="Slides, use arrow keys">
+
+    <article class="slide" role="group" aria-roledescription="slide" aria-label="1 of 3: Build your mannequin">
+      <div class="shot">
+        <div class="frame photo tall">
+          <div class="media">
+            <img src="media/tour-01-mannequin.jpg" loading="lazy" decoding="async"
+                 alt="A full-body studio render of a man in a grey tee, dark jeans and white sneakers.">
+          </div>
+        </div>
+      </div>
+      <div class="copy">
+        <p class="eyebrow">Step 01</p>
+        <h3>Build your <em>mannequin</em></h3>
+        <p>Upload a selfie and a full-body shot. The app builds a photoreal render of you — face, build, height — and stores an identity passport so your face stays your face in every look.</p>
+        <ul>
+          <li>Body-calibration dials for height and weight</li>
+          <li>One anchor render every outfit edits from</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="slide" role="group" aria-roledescription="slide" aria-label="2 of 3: Catalogue your closet">
+      <div class="shot">
+        <div class="frame photo tall">
+          <div class="media">
+            <img src="media/tour-02-wardrobe.jpg" loading="lazy" decoding="async"
+                 alt="Flat-lay of catalogued pieces: sage tee, camel overshirt, folded jeans, white sneakers, braided belt.">
+          </div>
+        </div>
+      </div>
+      <div class="copy">
+        <p class="eyebrow">Step 02</p>
+        <h3>Catalogue your <em>closet</em></h3>
+        <p>Photograph clothes worn, hung, or heaped on the bed. Several pieces in one photo are detected separately, named, tagged by category, colour and season, then re-shot once as a clean product image.</p>
+        <ul>
+          <li>Photos of you route to your profile</li>
+          <li>Disable pieces you don’t want styled</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="slide" role="group" aria-roledescription="slide" aria-label="3 of 3: Generate the fits">
+      <div class="shot">
+        <div class="frame photo tall">
+          <div class="media">
+            <img src="media/tour-03-fits.jpg" loading="lazy" decoding="async"
+                 alt="Three renders of the same person in a camel overshirt, white tee and dark jeans, from different angles.">
+          </div>
+        </div>
+      </div>
+      <div class="copy">
+        <p class="eyebrow">Step 03</p>
+        <h3>Generate. <em>Voilà</em>.</h3>
+        <p>The stylist composes fits from your real wardrobe — weather-aware, age-aware, tagged by occasion — and renders each one on your mannequin, head to shoes, with a short explanation of why it works.</p>
+        <ul>
+          <li>Work, casual, friends, date, active, lounge</li>
+          <li>One tap: same fit, different jeans</li>
+          <li>Goofy mode, if you insist</li>
+        </ul>
+      </div>
+    </article>
+
+  </div>
+
+  <div class="controls">
+    <div class="dots" aria-label="Choose a slide">
+      <button class="dot" type="button" aria-current="true"  aria-label="Slide 1"></button>
+      <button class="dot" type="button" aria-current="false" aria-label="Slide 2"></button>
+      <button class="dot" type="button" aria-current="false" aria-label="Slide 3"></button>
+    </div>
+  </div>
+  <p class="sr" aria-live="polite" data-live></p>
+</section>
+
+<!-- ══ 4. HOW IT WORKS ═════════════════════════════════════════════ -->
+<section id="how" class="pad">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">How it works</p>
+      <h2>From a pile of photos to a fit</h2>
+      <p>Four steps, in this order. One and two are setup you do once; step four is the part you come back for.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><p class="n">01</p><h3>Sign in with Google</h3><p>Google OAuth through Supabase. Access is invite-only for now — if your email isn’t on the list, the login page says so and sends you back.</p></div>
+      <div class="step"><p class="n">02</p><h3>Upload your photos</h3><p>Drag in a batch. Images are compressed in the browser, then classified: clothing becomes wardrobe items, photos of you go to your profile.</p></div>
+      <div class="step"><p class="n">03</p><h3>Set your profile</h3><p>Height, weight, and a ZIP code for weather. Then generate a base render — the studio full-body image every outfit is rendered against.</p></div>
+      <div class="step"><p class="n">04</p><h3>Open the fits page</h3><p>The stylist builds outfits from everything enabled in your wardrobe and renders them. A nightly cron refreshes scenes and works through queued restyles.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 5. FEATURES ═════════════════════════════════════════════════ -->
+<section id="features" class="pad band">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">Features</p>
+      <h2>What’s actually in it</h2>
+    </div>
+    <div class="grid">
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v16M20 4v16M4 9h16"/><path d="M9 9v5M15 9v5"/></svg>Walk-in closet home</h3><p>The home screen is a closet scene composed from your real pieces, with clickable rails and shelves.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>Identity-locked renders</h3><p>Every look is edit-framed off one anchor mannequin, so the face and build stay yours across outfits.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 6l1.5-2h5L16 6"/></svg>Automatic catalogue shots</h3><p>Each item gets one generated white-background product image, created once and saved with the model that made it.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>Weather-aware styling</h3><p>Your ZIP code drives a local forecast on the dashboard, and the stylist factors it into what it suggests.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/></svg>Occasion tags</h3><p>Fits are classified work, casual, friends, date, active or lounge, and filterable by the rating you gave them.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h12l-3-3M20 16H8l3 3"/></svg>Outfit variations</h3><p>One tap swaps a single piece — same tee, different pants — and renders the new version on click.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20a6 6 0 0 1 12 0M16 20a5 5 0 0 1 5-4"/></svg>Profiles and sharing</h3><p>Several people per account. Share a profile by email as viewer or manager; permissions live in Postgres, enforced by RLS.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 19h16"/></svg>Nothing is deleted</h3><p>Removals are soft deletes. Renders are appended and kept with their model tag, so you can compare outputs later.</p></div>
+      <div class="card"><h3><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 9.5h.01M15.5 9.5h.01M8 15c1.2 1.3 6.8 1.3 8 0"/></svg>Goofy mode</h3><p>Each fit optionally gets a comedy-pose take with the same likeness. Swipe between the classic version and that one.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 6. BUILT WITH ═══════════════════════════════════════════════ -->
+<section id="stack" class="pad-sm">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">Built with</p>
+      <h2>The stack, and where the photos live</h2>
+    </div>
+    <ul class="chips">
+      <li>Next.js 16</li><li>React 19</li><li>TypeScript</li><li>Tailwind CSS 4</li>
+      <li>Supabase</li><li>@google/genai</li><li>sharp</li><li>Vercel</li>
+    </ul>
+    <p class="note">Hosted on Vercel. Auth, Postgres and a private storage bucket are Supabase, with row-level security scoping every row to its owner. Image generation runs on Gemini, billed to my own API key — which is why access is invite-only.</p>
+  </div>
+</section>
+
+<!-- ══ 7. FAQ ══════════════════════════════════════════════════════ -->
+<section id="faq" class="pad-sm">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">FAQ</p>
+      <h2>Reasonable questions</h2>
+    </div>
+    <div class="faq">
+      <details open><summary>Is it free?</summary><p>For you, there is nothing to pay. For me there is — every render costs Gemini credits on my key. That is the whole reason access is invite-only.</p></details>
+      <details><summary>Do I need an account?</summary><p>Yes. Google sign-in, and your email has to be on the invite list. If it isn’t, the login page tells you to ask me to add it.</p></details>
+      <details><summary>Where do my photos go?</summary><p>A private Supabase storage bucket, filed under your user id and guarded by row-level security. Images are sent to Gemini for classification and rendering. None of it is public.</p></details>
+      <details><summary>Does it work on a phone?</summary><p>Yes, in the browser, and the layout is built for it. It ships a web manifest, so you can add it to your home screen. There is no App Store app and no offline mode.</p></details>
+      <details><summary>Can I run my own copy?</summary><p>The source is on GitHub. You would need your own Supabase project and a Gemini API key; the README lists every environment variable it expects.</p></details>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ══ FOOTER — link affordances #2 ═════════════════════════════════ -->
+<footer>
+  <div class="wrap foot">
+    <div>
+      <a class="wordmark" href="#top"><b>Hanger</b><span>management.</span></a>
+      <small style="margin-top:12px">
+        Built by <a class="plain" href="https://karthikrajan.info" rel="noopener">Karthik Rajan</a>.<br>
+        Last updated <time datetime="2026-08">August 2026</time>.
+      </small>
+    </div>
+    <div class="links">
+      <a class="btn btn-primary" href="https://hangermanagement.vercel.app" rel="noopener">Open the app</a>
+      <a class="btn btn-ghost" href="https://github.com/kbrovibes/stylecheck" rel="noopener">View source on GitHub</a>
+      <a class="btn btn-ghost" href="https://kbrovibes.github.io/">All projects</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   Markup-driven: add or remove .slide elements (and matching
+   .dot buttons) and the carousel adapts.
+   ============================================================ */
+(function () {
+  "use strict";
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /* ---------- 1. Carousel ---------- */
+  var track = document.getElementById("track");
+  if (track) {
+    var slides = Array.prototype.slice.call(track.querySelectorAll(".slide"));
+    var dots   = Array.prototype.slice.call(document.querySelectorAll(".dot"));
+    var live   = document.querySelector("[data-live]");
+    var toggle = document.querySelector("[data-toggle]");
+    var index  = 0;
+    var paused = false;      // user asked for pause
+    var resting = true;      // no pointer/focus inside right now
+    var timer  = null;
+    var AUTOPLAY_MS = 6500;
+
+    function label(i) {
+      var s = slides[i];
+      var h = s && s.querySelector(".copy h3");
+      return "Slide " + (i + 1) + " of " + slides.length + (h ? ": " + h.textContent.trim() : "");
+    }
+
+    function paint(i) {
+      index = i;
+      dots.forEach(function (d, n) { d.setAttribute("aria-current", n === i ? "true" : "false"); });
+      if (live) live.textContent = label(i);
+    }
+
+    function goTo(i, smooth) {
+      var n = (i + slides.length) % slides.length;
+      track.scrollTo({
+        left: n * track.clientWidth,
+        behavior: smooth && !reduce.matches ? "smooth" : "auto"
+      });
+      paint(n);
+    }
+
+    /* scroll-spy: the scroll position is the source of truth */
+    var raf = null;
+    track.addEventListener("scroll", function () {
+      if (raf) return;
+      raf = requestAnimationFrame(function () {
+        raf = null;
+        var n = Math.round(track.scrollLeft / track.clientWidth);
+        if (n !== index && slides[n]) paint(n);
+      });
+    }, { passive: true });
+
+    dots.forEach(function (d, n) {
+      d.addEventListener("click", function () { rest(false); goTo(n, true); });
+    });
+    var prev = document.querySelector("[data-prev]");
+    var next = document.querySelector("[data-next]");
+    if (prev) prev.addEventListener("click", function () { rest(false); goTo(index - 1, true); });
+    if (next) next.addEventListener("click", function () { rest(false); goTo(index + 1, true); });
+
+    /* keyboard: arrows when the track (or anything inside it) has focus */
+    track.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight") { e.preventDefault(); rest(false); goTo(index + 1, true); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); rest(false); goTo(index - 1, true); }
+      else if (e.key === "Home") { e.preventDefault(); rest(false); goTo(0, true); }
+      else if (e.key === "End") { e.preventDefault(); rest(false); goTo(slides.length - 1, true); }
+    });
+
+    /* autoplay, and every way it can stop */
+    var PLAY = '<path d="M4 2.5v11l9-5.5z"></path>';
+    var PAUSE = '<rect x="4" y="3" width="3" height="10" rx="1"></rect><rect x="9" y="3" width="3" height="10" rx="1"></rect>';
+
+    function rest(v) { resting = v; }
+
+    function tick() {
+      if (paused || !resting || document.hidden) return;
+      goTo(index + 1, true);
+    }
+
+    function start() {
+      stop();
+      if (reduce.matches) return;      /* honour prefers-reduced-motion: no autoplay */
+      timer = setInterval(tick, AUTOPLAY_MS);
+    }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+    function setPaused(v) {
+      paused = v;
+      if (toggle) {
+        toggle.setAttribute("aria-pressed", v ? "true" : "false");
+        toggle.setAttribute("aria-label", v ? "Resume automatic slide rotation" : "Pause automatic slide rotation");
+        var icon = toggle.querySelector("[data-icon]");
+        if (icon) icon.innerHTML = v ? PLAY : PAUSE;
+      }
+    }
+
+    if (toggle) {
+      if (reduce.matches) { toggle.hidden = true; }
+      toggle.addEventListener("click", function () { setPaused(!paused); });
+    }
+
+    /* hovering, touching, or tabbing into the carousel suspends rotation */
+    ["pointerenter", "pointerdown", "focusin"].forEach(function (ev) {
+      track.addEventListener(ev, function () { rest(false); });
+    });
+    ["pointerleave", "focusout"].forEach(function (ev) {
+      track.addEventListener(ev, function () { rest(true); });
+    });
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) stop(); else start();
+    });
+    reduce.addEventListener("change", function () { start(); if (toggle) toggle.hidden = reduce.matches; });
+
+    /* keep the slide aligned when the viewport changes width */
+    var rt = null;
+    window.addEventListener("resize", function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () { goTo(index, false); }, 120);
+    });
+
+    paint(0);
+    start();
+  }
+
+  /* ---------- 2. Header scroll-spy ---------- */
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll(".site nav a"));
+  var targets = navLinks
+    .map(function (a) { return document.querySelector(a.getAttribute("href")); })
+    .filter(Boolean);
+
+  if (targets.length && "IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        navLinks.forEach(function (a) {
+          a.setAttribute("aria-current", a.getAttribute("href") === "#" + entry.target.id ? "true" : "false");
+        });
+      });
+    }, { rootMargin: "-45% 0px -50% 0px", threshold: 0 });
+    targets.forEach(function (t) { io.observe(t); });
+  }
+})();
+</script>
+</body>
+</html>
