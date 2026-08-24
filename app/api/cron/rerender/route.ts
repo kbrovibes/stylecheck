@@ -33,8 +33,19 @@ export async function GET(request: Request) {
   const goofyBatch = url.searchParams.get("goofy") === "1";
   const catalogBatch = url.searchParams.get("catalog") === "1";
   const altBatch = url.searchParams.get("alt") === "1";
+  // Owner-scoped backlog runs: ?user=<uuid> limits the queue to one account,
+  // ?only=missing|unrendered fills gaps instead of re-doing existing work.
+  const onlyUser = url.searchParams.get("user");
+  const onlyMissing = url.searchParams.get("only") === "missing";
+  const onlyUnrendered = url.searchParams.get("only") === "unrendered";
   const before = url.searchParams.get("before");
-  if (!goofyBatch && !catalogBatch && !altBatch && (!before || Number.isNaN(Date.parse(before)))) {
+  if (
+    !goofyBatch &&
+    !catalogBatch &&
+    !altBatch &&
+    !onlyUnrendered &&
+    (!before || Number.isNaN(Date.parse(before)))
+  ) {
     return NextResponse.json({ error: "before=<ISO timestamp> required" }, { status: 400 });
   }
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 3, 1), 8);
@@ -46,12 +57,18 @@ export async function GET(request: Request) {
   // is resumable and idempotent.
   if (catalogBatch) {
     const cutoff = before && !Number.isNaN(Date.parse(before)) ? Date.parse(before) : Date.now();
-    const { data: itemsData } = await admin
+    let itemQuery = admin
       .from("sc_wardrobe_items")
       .select("*")
       .eq("deleted", false)
-      .in("category", ["top", "bottom", "outerwear", "full_body"])
       .order("created_at", { ascending: true });
+    // Gap-filling covers every category (footwear/accessories included); the
+    // uniformity sweep stays limited to garments.
+    if (!onlyMissing)
+      itemQuery = itemQuery.in("category", ["top", "bottom", "outerwear", "full_body"]);
+    if (onlyUser) itemQuery = itemQuery.eq("user_id", onlyUser);
+    if (onlyMissing) itemQuery = itemQuery.is("catalog_image_path", null);
+    const { data: itemsData } = await itemQuery;
     const items = (itemsData ?? []) as WardrobeItem[];
     const { data: shotRenders } = await admin
       .from("sc_renders")
@@ -62,10 +79,12 @@ export async function GET(request: Request) {
     for (const r of shotRenders ?? []) {
       if (r.subject_id && !latestShot.has(r.subject_id)) latestShot.set(r.subject_id, r.created_at);
     }
-    const queue = items.filter((i) => {
-      const last = latestShot.get(i.id);
-      return !last || Date.parse(last) < cutoff;
-    });
+    const queue = onlyMissing
+      ? items
+      : items.filter((i) => {
+          const last = latestShot.get(i.id);
+          return !last || Date.parse(last) < cutoff;
+        });
     const settingsCache = new Map<string, Settings>();
     const results: Record<string, string> = {};
     for (const item of queue.slice(0, limit)) {
@@ -100,11 +119,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ mode: "catalog", processed: Object.keys(results).length, remaining, results, depth });
   }
 
-  const { data: outfitsData } = await admin
+  let outfitQuery = admin
     .from("sc_outfits")
     .select("*")
     .eq("deleted", false)
     .order("created_at", { ascending: true });
+  if (onlyUser) outfitQuery = outfitQuery.eq("user_id", onlyUser);
+  if (onlyUnrendered) outfitQuery = outfitQuery.is("render_path", null);
+  const { data: outfitsData } = await outfitQuery;
   const outfits = ((outfitsData ?? []) as Outfit[]).filter((o) => o.person_id);
 
   // Latest render timestamp per outfit — only touch ones from before the cutoff.
@@ -142,6 +164,8 @@ export async function GET(request: Request) {
     ? altQueue
     : goofyBatch
     ? outfits.filter((o) => !o.goofy_render_path)
+    : onlyUnrendered
+    ? outfits
     : outfits.filter((o) => {
         const last = latest.get(o.id);
         return !last || Date.parse(last) < Date.parse(before!);
