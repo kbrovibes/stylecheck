@@ -4,6 +4,13 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
  * Per-user daily AI budgets (Pacific-midnight reset) so one runaway user can't
  * burn the API budget. Admins are exempt. Nightly crons are not metered — they
  * are owner-scheduled work with their own caps.
+ *
+ * These are DEFAULTS: sc_spend_credit prefers per-account overrides in
+ * sc_settings.daily_image_limit / daily_text_limit when set, so a single user
+ * can be raised without moving everyone's ceiling.
+ *
+ * Note: the counter increments before the cap is checked, so sc_usage counts
+ * attempts (including rejected ones), not successful generations.
  */
 export const DAILY_IMAGE_LIMIT = 60; // renders / product shots / scenes
 export const DAILY_TEXT_LIMIT = 300; // classify / compose / audits
