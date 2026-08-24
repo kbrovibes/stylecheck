@@ -60,7 +60,10 @@ export default function RenderButton({
       }
       router.refresh();
     } catch {
-      setError("Network hiccup — try again.");
+      // A render takes 30-90s and outlives flaky connections: the server
+      // usually finishes even when the request drops. Don't call it a failure.
+      setError("Connection dropped — the render may still be finishing. Refreshing…");
+      router.refresh();
     } finally {
       setLoading(false);
     }
