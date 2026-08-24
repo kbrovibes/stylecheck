@@ -12,7 +12,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
  * Note: the counter increments before the cap is checked, so sc_usage counts
  * attempts (including rejected ones), not successful generations.
  */
-export const DAILY_IMAGE_LIMIT = 60; // renders / product shots / scenes
+export const DAILY_IMAGE_LIMIT = 100; // renders / product shots / scenes
 export const DAILY_TEXT_LIMIT = 300; // classify / compose / audits
 
 const ADMIN_EMAILS = ["k4rthikr@gmail.com"];
@@ -44,6 +44,51 @@ export async function spendCredit(
   });
   if (error) return; // fail-open: metering must never break the product
   if (data?.over) throw new CreditError(kind);
+}
+
+/** Today's date in the billing timezone, as YYYY-MM-DD (matches sc_usage.day). */
+function pacificDay() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+export interface CreditStatus {
+  imageUsed: number;
+  imageLimit: number;
+  textUsed: number;
+  textLimit: number;
+  unlimited: boolean; // admins aren't metered
+}
+
+/** Today's spend + this account's effective caps, for display. */
+export async function getCreditStatus(
+  supabase: SupabaseClient,
+  user: User
+): Promise<CreditStatus> {
+  const [{ data: usage }, { data: overrides }] = await Promise.all([
+    supabase
+      .from("sc_usage")
+      .select("image_calls, text_calls")
+      .eq("user_id", user.id)
+      .eq("day", pacificDay())
+      .maybeSingle(),
+    supabase
+      .from("sc_settings")
+      .select("daily_image_limit, daily_text_limit")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+  return {
+    imageUsed: usage?.image_calls ?? 0,
+    textUsed: usage?.text_calls ?? 0,
+    imageLimit: overrides?.daily_image_limit ?? DAILY_IMAGE_LIMIT,
+    textLimit: overrides?.daily_text_limit ?? DAILY_TEXT_LIMIT,
+    unlimited: !!user.email && ADMIN_EMAILS.includes(user.email),
+  };
 }
 
 export function creditErrorResponse(e: unknown) {
