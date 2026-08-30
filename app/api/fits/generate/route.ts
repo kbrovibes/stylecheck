@@ -7,6 +7,7 @@ import { composeOutfits } from "@/lib/ai";
 import { getWeather } from "@/lib/weather";
 import { blockingGaps, computeCoverage } from "@/lib/coverage";
 import { RENDER_ISSUE_REASON, type UserPhoto, type WardrobeItem, type WeatherInfo } from "@/lib/types";
+import { stripIncompatibleItems } from "@/lib/ai/ethnic";
 
 export const maxDuration = 300;
 
@@ -155,11 +156,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // A dhoti takes no belt. The stylist is told this, but models still reach
+    // for one whenever a belt exists in the wardrobe — so enforce it here.
+    const itemById = new Map(items.map((i) => [i.id, i]));
     const rows = plans.map((p) => ({
       user_id: user.id,
       person_id: person.id,
       title: p.title,
-      item_ids: p.item_ids,
+      item_ids: stripIncompatibleItems(p.item_ids, itemById).itemIds,
       occasion: p.occasion,
       seasons: p.seasons ?? [],
       weather_note: p.weather_note || null,

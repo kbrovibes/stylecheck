@@ -18,7 +18,7 @@ export type Formality =
   | "athletic"
   | "lounge";
 
-export type Occasion = "work" | "casual" | "friends" | "date" | "active" | "lounge";
+export type Occasion = "work" | "casual" | "friends" | "date" | "ethnic" | "active" | "lounge";
 
 export type Season = "spring" | "summer" | "fall" | "winter";
 
@@ -287,6 +287,7 @@ export const OCCASION_LABELS: Record<Occasion, string> = {
   casual: "Casual",
   friends: "Friends",
   date: "Date",
+  ethnic: "Ethnic",
   active: "Active",
   lounge: "Lounge",
 };

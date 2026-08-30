@@ -9,6 +9,7 @@ import { composeExactPrompt } from "@/lib/ai/prompts";
 import { renderOutfitRecord } from "@/lib/render";
 import { getWeather } from "@/lib/weather";
 import type { Outfit, WardrobeItem, WeatherInfo } from "@/lib/types";
+import { stripIncompatibleItems } from "@/lib/ai/ethnic";
 
 export const maxDuration = 300;
 
@@ -99,8 +100,16 @@ export async function POST(request: Request) {
     }).catch(() => null);
   }
 
+  // Standing rule: a dhoti/veshti/lungi is tied at the waist and never takes a
+  // belt, so drop one even from a hand-picked set.
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const { itemIds: styledIds, dropped } = stripIncompatibleItems(itemIds, byId);
+  const styledItems = styledIds
+    .map((id) => byId.get(id))
+    .filter(Boolean) as WardrobeItem[];
+
   try {
-    const prompt = composeExactPrompt({ profile: person, items, weather });
+    const prompt = composeExactPrompt({ profile: person, items: styledItems, weather });
     const call =
       settings.provider === "openai" ? openaiJson<ComposedFit> : geminiJson<ComposedFit>;
     const fit = await call({ model: settings.text_model, prompt });
@@ -111,7 +120,7 @@ export async function POST(request: Request) {
         user_id: user.id,
         person_id: person.id,
         title: fit.title ?? "Hand-picked fit",
-        item_ids: itemIds,
+        item_ids: styledIds,
         occasion: fit.occasion ?? "casual",
         seasons: fit.seasons ?? [],
         explanation: fit.explanation ?? null,
@@ -126,7 +135,10 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     await renderOutfitRecord(supabase, user.id, created as Outfit, person, settings);
-    return NextResponse.json({ id: (created as Outfit).id });
+    return NextResponse.json({
+      id: (created as Outfit).id,
+      dropped: dropped.map((d) => d.name ?? d.subcategory ?? "belt"),
+    });
   } catch (e) {
     return NextResponse.json(
       { error: `Styling failed: ${(e as Error).message}` },

@@ -1,4 +1,13 @@
 import { ageFromBirthYear } from "@/lib/types";
+import {
+  ETHNIC_CATALOGUE_RULES,
+  ETHNIC_GOOFY_LICENCE,
+  ETHNIC_OCCASION_RULE,
+  ethnicContext,
+  ethnicGoofyPoses,
+  ethnicRenderBlock,
+  ethnicStylistBlock,
+} from "@/lib/ai/ethnic";
 import type {
   BodyProfile,
   Outfit,
@@ -82,7 +91,8 @@ Rules:
 - Only include items you can describe confidently (visible enough to catalogue). Skip barely visible slivers.
 - Do not catalogue underwear or socks unless they are clearly the subject of the photo.
 - If the image is blurry, irrelevant, or not fashion related, kind = "unusable" with empty "items".
-- "full_body" category is for one-piece garments (dresses, jumpsuits, overalls).`;
+- "full_body" category is for one-piece garments (dresses, jumpsuits, overalls).
+${ETHNIC_CATALOGUE_RULES}`;
 
 export function composeOutfitsPrompt(opts: {
   profile: BodyProfile;
@@ -106,6 +116,10 @@ export function composeOutfitsPrompt(opts: {
   if (!settings.generate_accessories) optional.push("do NOT include accessories");
   if (!settings.generate_shoes) optional.push("footwear is optional");
   if (!settings.generate_belts) optional.push("do NOT include belts");
+  if (ethnicContext(items).dhoti)
+    optional.push(
+      "NEVER pair a belt with a dhoti/veshti/mundu/lungi — this overrides the belt setting entirely"
+    );
   optional.push("NEVER include eyewear/glasses (unsupported)");
 
   return `You are a modern minimal fashion stylist — think quiet luxury, clean lines, intentional color.
@@ -114,7 +128,7 @@ CRITICAL: every value in "item_ids" must be copied character-for-character from 
 
 PERSON: ${ageFromBirthYear(profile.birth_year) ? `${ageFromBirthYear(profile.birth_year)} years old, ` : ""}height ${profile.height_cm ?? "?"} cm, weight ${profile.weight_kg ?? "?"} kg.
 ${weather ? `CURRENT WEATHER in ${weather.place}: ${weather.condition}, ${weather.temp_f}°F (high ${weather.high_f} / low ${weather.low_f}), season: ${weather.season}.` : "Weather unknown — cover multiple seasons."}
-${occasion ? `FOCUS OCCASION: ${occasion}.` : "Cover a spread of occasions: work, casual, friends, date."}
+${occasion ? `FOCUS OCCASION: ${occasion}.` : `Cover a spread of occasions: work, casual, friends, date${ethnicContext(items).ethnic ? ", and at least one ethnic look since the wardrobe has traditional pieces" : ""}.`}
 
 OCCASION DEFINITIONS — label strictly; a wrong label is worse than a missing occasion:
 - work: office-appropriate. Smart casual to business. Never shorts, flip-flops, or athletic wear.
@@ -123,6 +137,7 @@ OCCASION DEFINITIONS — label strictly; a wrong label is worse than a missing o
 - date: elevated and intentional — best-fitting trousers/dark denim, a refined top, overshirt or blazer, clean leather shoes or crisp minimal sneakers. Never gym wear, never sloppy. If the wardrobe can't produce a genuinely date-worthy look, do NOT force one — label it differently.
 - active: ONLY real athletic pieces (performance tees, gym shorts, joggers, trainers). If the wardrobe has none, produce zero "active" fits.
 - lounge: home comfort — soft layers, easy fits.
+${ETHNIC_OCCASION_RULE}
 
 WARDROBE:
 ${itemLines}
@@ -134,7 +149,7 @@ CONSTRAINTS:
 - Match formality to occasion: no shorts/flip-flops for work; no athletic wear on date night unless styled deliberately.
 - Consider color harmony, proportion for their build, season, and the current weather.
 - Prefer variety across the set — different anchors, not five variations of one look.
-${styleRulesBlock(profile, "stylist")}${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
+${ethnicStylistBlock(ethnicContext(items))}${styleRulesBlock(profile, "stylist")}${ageFromBirthYear(profile.birth_year) ? `- AGE-APPROPRIATE STYLING (important): they are ${ageFromBirthYear(profile.birth_year)}. Style for that exact life stage — modern and current, never skewing younger or older. For someone in their mid-30s+: refined fits over juniors' trends, elevated basics, intentional palettes, quality-signaling pieces; skip styling that reads college/early-20s (logo-forward streetwear energy, deliberately sloppy oversizing) unless the occasion truly calls for it. Equally: nothing dowdy or prematurely aging. When relevant, the explanation should say why the look suits a ${ageFromBirthYear(profile.birth_year)}-year-old.` : ""}
 
 ${opts.dislikes?.length ? `DISLIKED BY THE USER — they thumbed these down (their stated reasons included where given). Do not propose close variants, and do not repeat the specific mistakes they called out:\n${opts.dislikes.map((d) => `- ${d}`).join("\n")}\n\n` : ""}${opts.mustFeature?.length ? `UNDERUSED PIECES — these item ids are in no current fit. EVERY outfit you produce must feature at least one of them, and across the set cover as many as possible:\n${opts.mustFeature.map((m) => `- ${m}`).join("\n")}\n\n` : ""}SCORING — be a genuinely critical stylist, not a cheerleader:
 - Calibrate: 5 = wearable but forgettable · 6 = good · 7 = strong · 8 = excellent, lookbook-worthy · 9 = near-perfect (rare: at most ONE per batch) · 10 = never given.
@@ -147,7 +162,7 @@ Respond with JSON only:
     {
       "title": string,                    // editorial name, e.g. "Off-Duty Monochrome"
       "item_ids": string[],               // ids from the wardrobe above
-      "occasion": "work"|"casual"|"friends"|"date"|"active"|"lounge",
+      "occasion": "work"|"casual"|"friends"|"date"|"ethnic"|"active"|"lounge",
       "seasons": ("spring"|"summer"|"fall"|"winter")[],
       "explanation": string,              // 2-3 sentences on WHY this works for THIS person (build, coloring, weather, occasion)
       "styling_notes": string,            // tuck/cuff/layer guidance
@@ -191,9 +206,15 @@ const GOOFY_POSES = [
   "flexing like a 1900s circus strongman",
 ];
 
-export function goofyPoseInstruction() {
-  const picks = [...GOOFY_POSES].sort(() => Math.random() - 0.5).slice(0, 3);
-  return `COMEDY POSE — instead of a standard pose, the person is doing something ridiculous. Pick whichever of these reads funniest with this outfit: ${picks.join("; or ")}. Commit to the bit — dynamic, theatrical, laugh-out-loud staging. A playful, exaggerated expression is welcome, but the face must remain 100% unmistakably the same person (same features, glasses, hair — never a caricature, never distorted).`;
+export function goofyPoseInstruction(
+  items: Pick<WardrobeItem, "category" | "name" | "subcategory" | "description" | "style_tags">[] = []
+) {
+  // Ethnic looks get their own comedy vocabulary — a dhoti hitch reads far
+  // funnier than a generic jazz-hands jump, and western poses fight the drape.
+  const ethnicPicks = ethnicGoofyPoses(items);
+  const pool = ethnicPicks.length ? [...ethnicPicks, ...GOOFY_POSES.slice(0, 4)] : GOOFY_POSES;
+  const picks = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
+  return `COMEDY POSE — instead of a standard pose, the person is doing something ridiculous. Pick whichever of these reads funniest with this outfit: ${picks.join("; or ")}. Commit to the bit — dynamic, theatrical, laugh-out-loud staging. A playful, exaggerated expression is welcome, but the face must remain 100% unmistakably the same person (same features, glasses, hair — never a caricature, never distorted).${ethnicPicks.length ? `\n${ETHNIC_GOOFY_LICENCE}` : ""}`;
 }
 
 /**
@@ -218,13 +239,14 @@ export function outfitEditPrompt(opts: {
 
 ${opts.identityPhotoCount ? `IDENTITY PROOF — the ${opts.identityPhotoCount} image(s) labeled "IDENTITY PROOF" are REAL photographs of this person. The output face must match these photos even more than the BASE IMAGE: if the BASE IMAGE has drifted from the photos in any facial detail, correct toward the photos.\n` : ""}${opts.identityNotes ? `VERIFIED IDENTITY DESCRIPTION (cross-check every detail): ${opts.identityNotes}\n` : ""}
 KEEP IDENTICAL TO THE BASE IMAGE (do not regenerate or alter): the person — their exact face, ${opts.goofy ? "" : "expression, "}hair, skin tone, facial hair, glasses/no-glasses, body proportions — plus ${opts.goofy ? "the lighting and the ivory studio background" : "the pose, camera framing, lighting and the ivory studio background"}. This must remain the same person${opts.goofy ? "" : ", with new clothes on"}. Treat the head region as protected: reproduce the face, hairline and glasses with photographic fidelity — no smoothing, no restyling, no drift.
-${opts.goofy ? `\n${goofyPoseInstruction()}\n` : ""}
+${opts.goofy ? `\n${goofyPoseInstruction(items)}\n` : ""}
 
 REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
 - Each garment must match its reference image faithfully: same color, pattern, fabric and details. Do not redesign or substitute.
 - Fit the garments naturally to this person's build (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg).${ageFromBirthYear(profile.birth_year) ? `\n- The person is ${ageFromBirthYear(profile.birth_year)} years old: style the garments (fit, tuck, drape) the way a stylist would for that age — and never de-age or age the face.` : ""}${styleRulesBlock(profile, "render")}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 - Full frame, head to shoes visible, photorealistic, 3:4 portrait.
-${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
+${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}
+${ethnicRenderBlock(items, outfit?.styling_notes)}`;
 }
 
 /**
@@ -264,9 +286,10 @@ Replace only the clothing. Each garment must match its reference image faithfull
 Fit the garments naturally to this person's ${opts.editBase ? "existing pose and body geometry" : "build"} with realistic fabric drape, folds, and shadows (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg — honest silhouette).${ageFromBirthYear(profile.birth_year) ? ` The person is ${ageFromBirthYear(profile.birth_year)} years old — style for that age, and never de-age or age the face.` : ""}${styleRulesBlock(profile, "render")}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 
 SCENE:
-${opts.goofy ? goofyPoseInstruction() : opts.editBase ? "Keep the pose, camera angle, framing, lighting, and the ivory studio background exactly the same as Image 1. Match lighting, shadows, and color temperature so the new clothing integrates photorealistically." : "Photorealistic full-body studio fashion shot: standing, relaxed natural pose, camera at chest height, soft ivory seamless backdrop, soft even lighting, subtle shadow."}
+${opts.goofy ? goofyPoseInstruction(items) : opts.editBase ? "Keep the pose, camera angle, framing, lighting, and the ivory studio background exactly the same as Image 1. Match lighting, shadows, and color temperature so the new clothing integrates photorealistically." : "Photorealistic full-body studio fashion shot: standing, relaxed natural pose, camera at chest height, soft ivory seamless backdrop, soft even lighting, subtle shadow."}
 - Full frame, head to shoes fully visible, photorealistic, 3:4 portrait.
-${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
+${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}
+${ethnicRenderBlock(items, outfit?.styling_notes)}`;
 }
 
 /** Judge prompt: is the rendered face the same real person? JSON verdict. */
@@ -297,7 +320,8 @@ REQUIREMENTS:
 - Full frame, head to shoes fully visible, standing, relaxed natural pose, camera at chest height, natural expression consistent with the reference photos.
 - Clean minimal studio background: soft ivory seamless backdrop, soft even lighting, subtle shadow.
 - Editorial catalogue quality, 3:4 portrait aspect.
-${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}`;
+${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}
+${ethnicRenderBlock(items, outfit?.styling_notes)}`;
 }
 
 export function reclassifyItemPrompt(
@@ -425,12 +449,12 @@ ${list}
 
 ${opts.weather ? `Current weather: ${opts.weather.condition}, ${opts.weather.temp_f}°F.` : ""}
 Person: ${ageFromBirthYear(opts.profile.birth_year) ? `${ageFromBirthYear(opts.profile.birth_year)} years old, ` : ""}height ${opts.profile.height_cm ?? "?"} cm, weight ${opts.profile.weight_kg ?? "?"} kg.
-${styleRulesBlock(opts.profile, "stylist")}
+${ethnicStylistBlock(ethnicContext(opts.items))}${styleRulesBlock(opts.profile, "stylist")}
 
 Respond with JSON only:
 {
   "title": string,                 // editorial name
-  "occasion": "work"|"casual"|"friends"|"date"|"active"|"lounge",
+  "occasion": "work"|"casual"|"friends"|"date"|"ethnic"|"active"|"lounge",
   "seasons": ("spring"|"summer"|"fall"|"winter")[],
   "explanation": string,           // honest 2-3 sentences: why it works — or what's off, if the combo is awkward
   "styling_notes": string,
@@ -446,6 +470,7 @@ export function relabelOccasionsPrompt(
 - casual: relaxed everyday
 - friends: social, expressive
 - date: elevated + intentional (refined top, best bottoms, clean shoes) — a plain tee + shorts is NOT a date fit
+- ethnic: traditional South Asian wear — anchored by a kurta, sherwani, dhoti/veshti, saree or salwar kameez. A western outfit is never "ethnic".
 - active: ONLY real athletic pieces (performance wear, trainers)
 - lounge: home comfort
 
@@ -453,5 +478,5 @@ FITS:
 ${fits.map((f) => `- id=${f.id} | current="${f.occasion}" | ${f.title} | pieces: ${f.itemSummary}`).join("\n")}
 
 Respond with JSON only — ONLY the fits whose label should change:
-{ "corrections": [ { "id": string, "occasion": "work"|"casual"|"friends"|"date"|"active"|"lounge" } ] }`;
+{ "corrections": [ { "id": string, "occasion": "work"|"casual"|"friends"|"date"|"ethnic"|"active"|"lounge" } ] }`;
 }

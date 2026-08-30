@@ -49,14 +49,27 @@ export default async function FitsPage({
   if (occasion && occasion in OCCASION_LABELS) {
     query = query.eq("occasion", occasion);
   }
-  const [{ data: outfitsData }, { data: itemsData }] = await Promise.all([
-    query,
-    supabase
-      .from("sc_wardrobe_items")
-      .select("*")
-      .eq("person_id", person.id)
-      .eq("deleted", false),
-  ]);
+  const [{ data: outfitsData }, { data: itemsData }, { count: manualCount }, { count: stylistCount }] =
+    await Promise.all([
+      query,
+      supabase
+        .from("sc_wardrobe_items")
+        .select("*")
+        .eq("person_id", person.id)
+        .eq("deleted", false),
+      supabase
+        .from("sc_outfits")
+        .select("id", { count: "exact", head: true })
+        .eq("person_id", person.id)
+        .eq("deleted", false)
+        .eq("manual", true),
+      supabase
+        .from("sc_outfits")
+        .select("id", { count: "exact", head: true })
+        .eq("person_id", person.id)
+        .eq("deleted", false)
+        .eq("manual", false),
+    ]);
 
   const outfits = (outfitsData ?? []) as Outfit[];
   const visibleOutfits =
@@ -118,14 +131,53 @@ export default async function FitsPage({
         <GenerateButton />
       </PageTitle>
 
+      {/* Who styled it — the primary split, so it never scrolls out of reach
+          on mobile the way it did when it sat at the end of the chip rail. */}
+      <div className="mb-4 flex rounded-full border hairline bg-paper p-1 sm:mb-5 sm:w-fit">
+        {[
+          { mine: false, label: "Stylist picks", count: stylistCount },
+          { mine: true, label: "Styled by me", count: manualCount },
+        ].map((seg) => {
+          const params = new URLSearchParams();
+          if (occasion) params.set("occasion", occasion);
+          if (min) params.set("min", min);
+          if (seg.mine) params.set("mine", "1");
+          const qs = params.toString();
+          const active = mineOnly === seg.mine;
+          return (
+            <Link
+              key={seg.label}
+              href={qs ? `/fits?${qs}` : "/fits"}
+              aria-current={active ? "true" : undefined}
+              className={`flex-1 whitespace-nowrap rounded-full px-4 py-2 text-center text-[13px] font-medium transition-colors sm:flex-none ${
+                active
+                  ? "bg-ink text-ivory"
+                  : "text-ink-soft hover:bg-ivory"
+              }`}
+            >
+              {seg.label}
+              <span className={`ml-1.5 text-[11px] ${active ? "text-ivory/60" : "text-ink-faint"}`}>
+                {seg.count}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
       {/* One scrollable chip rail on mobile; wraps on desktop */}
       <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:mb-8 sm:flex-wrap sm:overflow-visible sm:px-0">
         {tabs.map((t) => {
-          const active = !mineOnly && (occasion ?? "") === t.value;
+          const active = (occasion ?? "") === t.value;
+          const params = new URLSearchParams();
+          if (t.value) params.set("occasion", t.value);
+          if (min) params.set("min", min);
+          if (mineOnly) params.set("mine", "1");
+          const qs = params.toString();
           return (
             <Link
               key={t.value}
-              href={`/fits${[t.value ? `occasion=${t.value}` : "", min ? `min=${min}` : ""].filter(Boolean).length ? `?${[t.value ? `occasion=${t.value}` : "", min ? `min=${min}` : ""].filter(Boolean).join("&")}` : ""}`}
+              href={qs ? `/fits?${qs}` : "/fits"}
+              aria-current={active ? "true" : undefined}
               className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] transition-colors ${
                 active
                   ? "bg-ink text-ivory"
@@ -136,16 +188,6 @@ export default async function FitsPage({
             </Link>
           );
         })}
-        <Link
-          href="/fits?mine=1"
-          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] transition-colors ${
-            mineOnly
-              ? "bg-camel text-ivory"
-              : "border border-camel/40 bg-camel/5 text-camel-deep hover:bg-camel/15"
-          }`}
-        >
-          Styled by me
-        </Link>
         <span className="mx-1 hidden self-center text-ink-faint/40 sm:inline">|</span>
         {[
           { v: "", label: "Any rating" },
@@ -156,6 +198,7 @@ export default async function FitsPage({
           const params = new URLSearchParams();
           if (occasion) params.set("occasion", occasion);
           if (f.v) params.set("min", f.v);
+          if (mineOnly) params.set("mine", "1");
           const qs = params.toString();
           return (
             <Link
