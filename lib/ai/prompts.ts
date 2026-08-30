@@ -246,7 +246,7 @@ REPLACE the outfit with exactly these labeled wardrobe items: ${itemDesc}.
 - Fit the garments naturally to this person's build (height ${profile.height_cm ?? "average"} cm, weight ${profile.weight_kg ?? "average"} kg).${ageFromBirthYear(profile.birth_year) ? `\n- The person is ${ageFromBirthYear(profile.birth_year)} years old: style the garments (fit, tuck, drape) the way a stylist would for that age — and never de-age or age the face.` : ""}${styleRulesBlock(profile, "render")}${bodyCalibration(opts.adjustments ?? profile.render_adjustments)}
 - Full frame, head to shoes visible, photorealistic, 3:4 portrait.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}
-${ethnicRenderBlock(items, outfit?.styling_notes)}`;
+${ethnicRenderBlock(items, { goofy: opts.goofy })}`;
 }
 
 /**
@@ -289,7 +289,7 @@ SCENE:
 ${opts.goofy ? goofyPoseInstruction(items) : opts.editBase ? "Keep the pose, camera angle, framing, lighting, and the ivory studio background exactly the same as Image 1. Match lighting, shadows, and color temperature so the new clothing integrates photorealistically." : "Photorealistic full-body studio fashion shot: standing, relaxed natural pose, camera at chest height, soft ivory seamless backdrop, soft even lighting, subtle shadow."}
 - Full frame, head to shoes fully visible, photorealistic, 3:4 portrait.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}
-${ethnicRenderBlock(items, outfit?.styling_notes)}`;
+${ethnicRenderBlock(items, { goofy: opts.goofy })}`;
 }
 
 /** Judge prompt: is the rendered face the same real person? JSON verdict. */
@@ -305,6 +305,7 @@ export function renderOutfitPrompt(opts: {
   outfit: Pick<Outfit, "title" | "styling_notes"> | null;
   personImageCount?: number;
   adjustments?: RenderAdjustments | null;
+  goofy?: boolean;
 }) {
   const { profile, items, outfit } = opts;
   const itemDesc = items
@@ -321,7 +322,7 @@ REQUIREMENTS:
 - Clean minimal studio background: soft ivory seamless backdrop, soft even lighting, subtle shadow.
 - Editorial catalogue quality, 3:4 portrait aspect.
 ${outfit?.styling_notes ? `- Styling: ${outfit.styling_notes}` : ""}
-${ethnicRenderBlock(items, outfit?.styling_notes)}`;
+${ethnicRenderBlock(items, { goofy: opts.goofy })}`;
 }
 
 export function reclassifyItemPrompt(

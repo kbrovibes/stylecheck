@@ -221,19 +221,28 @@ export function ethnicStylistBlock(ctx: EthnicContext): string {
       "  · NEVER include a belt with a dhoti, veshti, mundu or lungi. It is tied at the waist; a belt is simply wrong. This holds even when belts exist in the wardrobe and even when the belt settings are enabled.",
       "  · Do not tuck a kurta into a dhoti. The kurta hangs over it.",
       "  · Footwear is sandals/kolhapuris/crocs only.",
-      "  · In styling_notes, say whether the drape is worn FULL LENGTH (ankle-length, formal — temple, wedding, ceremony) or FOLDED AND TUCKED at knee height (the everyday South Indian way: the lower half is lifted and tucked at the waist, hem sitting around the knee). Pick whichever suits the occasion and say why."
+      "  · The drape is worn FULL LENGTH, to the ankles. Do not suggest folding, hitching or tucking it up to the knee in styling_notes — that is a separate everyday drape the app handles on its own."
     );
   }
   return `\n${lines.join("\n")}\n`;
 }
 
 /**
- * Drape instructions for the image models. Getting a dhoti to render correctly
- * is mostly a matter of telling the model it is a wrapped garment, not trousers.
+ * Drape instructions for the image models.
+ *
+ * The drape is decided by WHICH render this is, not by the styling notes:
+ *
+ * - Classic render  → always full length, hem at the ankles. This is how a
+ *   mundu/veshti is worn for anything you would photograph someone in.
+ * - Goofy render    → "madakki kuthi" (Malayalam: folded and tucked) is fair
+ *   game — the lower half hitched up and tucked at the waist so the hem sits
+ *   at the knee. It is the everyday working drape and a staple of Malayalam
+ *   and Tamil cinema posturing, which is exactly why it belongs in the joke
+ *   photo and not the straight one.
  */
 export function ethnicRenderBlock(
   items: Pick<WardrobeItem, "category" | "name" | "subcategory" | "description" | "style_tags">[],
-  stylingNotes?: string | null
+  opts: { goofy?: boolean } = {}
 ): string {
   const ctx = ethnicContext(items);
   if (!ctx.ethnic) return "";
@@ -245,15 +254,23 @@ export function ethnicRenderBlock(
   ];
 
   if (ctx.dhoti) {
-    const folded = /fold|knee|tuck|half|kaccha|everyday/i.test(stylingNotes ?? "");
     lines.push(
-      "- The lower garment is a DHOTI / VESHTI / LUNGI: a single rectangle of unstitched cloth wrapped around the waist and knotted or tucked at the front. It is NOT trousers, NOT a skirt, and has no fly, no pockets, no waistband and no seams down the legs.",
+      "- The lower garment is a DHOTI / VESHTI / MUNDU / LUNGI: a single rectangle of unstitched cloth wrapped around the waist and knotted or tucked at the front. It is NOT trousers, NOT a skirt, and has no fly, no pockets, no waistband and no seams down the legs.",
       "- Render the wrap honestly: the vertical fall of the cloth, the pleated fan of fabric at the front where it is tucked, and the coloured or zari border running along the hem.",
-      "- NO BELT. Absolutely no belt, no buckle, no waist strap of any kind — the cloth is held by its own knot. Do not add one even if the look seems to need definition at the waist.",
-      folded
-        ? "- DRAPE STYLE — FOLDED AND TUCKED: the lower half of the cloth is lifted and tucked into the waist so the hem sits at knee height, with the folded edge falling in a clean horizontal line across the knees and the doubled fabric visible. This is the relaxed everyday South Indian way of wearing it. Legs are bare below the knee."
-        : "- DRAPE STYLE — FULL LENGTH: the cloth falls straight to the ankles, covering the legs completely, hem just above the feet."
+      "- NO BELT. Absolutely no belt, no buckle, no waist strap of any kind — the cloth is held by its own knot. Do not add one even if the look seems to need definition at the waist."
     );
+
+    if (opts.goofy) {
+      lines.push(
+        "- DRAPE STYLE — \"MADAKKI KUTHI\" (folded and tucked) is encouraged here: the lower half of the cloth is folded up and tucked into the waist so the hem sits at KNEE height. The folded edge runs in a clean horizontal line across the knees, the doubled fabric reads as a visibly thicker band at the waist, and the lower legs are bare. This is the everyday working drape and a classic film-poster stance — lean into it.",
+        "- Alternatively the full-length drape mid-flick works too, cloth flaring with the movement. Pick whichever sells the joke."
+      );
+    } else {
+      lines.push(
+        "- DRAPE STYLE — FULL LENGTH, always. The cloth falls straight from the waist to the ANKLES, covering the legs completely, hem sitting just above the feet. Do NOT fold, hitch, roll or tuck it up. Do NOT render it at knee height or calf height — a knee-length dhoti is wrong for this photograph.",
+        "- Optional and authentic: the left hand may lightly hold the loose pleated front edge of the cloth at hip or thigh height — the habitual way it is held so the hem does not drag. Keep the hold relaxed and low; it must never lift the hem above the ankle."
+      );
+    }
   }
 
   lines.push(
@@ -268,15 +285,19 @@ export function ethnicRenderBlock(
  * a comedic beat in South Indian film, so it earns its own set.
  */
 const ETHNIC_GOOFY_POSES = [
-  "mid-lungi-dance, both hands flicking the folded hem out to the sides like a film hero",
-  "caught in the act of hitching the dhoti up to knee height, one leg lifted, deeply serious face",
-  "a full Tamil-cinema swagger walk, angavastram flung over one shoulder mid-flourish",
-  "spinning so the dhoti flares out, arms wide, hair everywhere",
-  "the 'ready to fight but make it dignified' stance, dhoti tucked, sleeves rolled",
-  "an exaggerated wedding-buffet plate-balancing act, kurta immaculate, panic in the eyes",
+  "\"madakki kuthi\" mid-hitch — caught in the act of folding the mundu up and tucking it at the waist, one knee bent, face deadly serious like this is important work",
+  "full film-poster stance with the mundu folded to the knee: feet planted wide, chest out, chin up, staring down the middle distance as if a bus is about to explode behind him",
+  "mid lungi-dance, mundu folded at the knee, both hands flicking the hem out to the sides",
+  "spinning hard enough that the folded mundu flares out like a tutu, arms wide, expression of total commitment",
+  "the slow-motion hero walk, angavastram flung over one shoulder mid-flourish, mundu tucked, sunglasses energy without sunglasses",
+  "sleeves rolled and mundu tucked, in a fighting stance aimed at absolutely nobody",
+  "the classic uncle pose: hands clasped behind the back, mundu tucked, surveying an empty room like it owes him money",
+  "an exaggerated wedding-buffet plate-balancing act, kurta immaculate, quiet panic in the eyes",
   "attempting a very ambitious bhangra shoulder-pump entirely alone",
-  "the classic uncle pose: hands clasped behind the back, surveying an empty room like it owes him money",
 ];
+
+/** Poses that need a dhoti to work at all — they reference the fold. */
+const DHOTI_ONLY_POSES = 7;
 
 /** Extra poses to fold into the comedy set when the outfit is ethnic. */
 export function ethnicGoofyPoses(
@@ -284,7 +305,8 @@ export function ethnicGoofyPoses(
 ): string[] {
   const ctx = ethnicContext(items);
   if (!ctx.ethnic) return [];
-  return ctx.dhoti ? ETHNIC_GOOFY_POSES : ETHNIC_GOOFY_POSES.slice(2);
+  // Without a dhoti the fold-and-tuck poses make no sense — drop them.
+  return ctx.dhoti ? ETHNIC_GOOFY_POSES : ETHNIC_GOOFY_POSES.slice(DHOTI_ONLY_POSES);
 }
 
 /**
@@ -292,4 +314,4 @@ export function ethnicGoofyPoses(
  * break — "unless you want to make it really freaky" was the ask.
  */
 export const ETHNIC_GOOFY_LICENCE =
-  "The outfit is ethnic wear: the comedy may extend to absurd footwear (crocs with socks, mismatched sandals, one shoe missing) — but the drape itself stays authentic and there is still NO BELT on a dhoti.";
+  "The outfit is ethnic wear: the comedy may extend to absurd footwear (crocs with socks, mismatched sandals, one shoe missing), and the mundu/dhoti may be worn \"madakki kuthi\" — folded up and tucked at the waist so it sits at knee height, the everyday drape that doubles as film-poster swagger. The fold itself must still read as real cloth doubled over and tucked, not as shorts. There is still NO BELT.";

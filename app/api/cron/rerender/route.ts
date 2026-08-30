@@ -38,12 +38,19 @@ export async function GET(request: Request) {
   const onlyUser = url.searchParams.get("user");
   const onlyMissing = url.searchParams.get("only") === "missing";
   const onlyUnrendered = url.searchParams.get("only") === "unrendered";
+  // ?outfit=<uuid>[,<uuid>] — re-render exactly these, ignoring the cutoff.
+  // Lets a prompt fix be applied to specific fits without sweeping the account.
+  const onlyOutfits = (url.searchParams.get("outfit") ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
   const before = url.searchParams.get("before");
   if (
     !goofyBatch &&
     !catalogBatch &&
     !altBatch &&
     !onlyUnrendered &&
+    !onlyOutfits.length &&
     (!before || Number.isNaN(Date.parse(before)))
   ) {
     return NextResponse.json({ error: "before=<ISO timestamp> required" }, { status: 400 });
@@ -125,6 +132,7 @@ export async function GET(request: Request) {
     .eq("deleted", false)
     .order("created_at", { ascending: true });
   if (onlyUser) outfitQuery = outfitQuery.eq("user_id", onlyUser);
+  if (onlyOutfits.length) outfitQuery = outfitQuery.in("id", onlyOutfits);
   if (onlyUnrendered) outfitQuery = outfitQuery.is("render_path", null);
   const { data: outfitsData } = await outfitQuery;
   const outfits = ((outfitsData ?? []) as Outfit[]).filter((o) => o.person_id);
@@ -162,6 +170,10 @@ export async function GET(request: Request) {
 
   const queue = altBatch
     ? altQueue
+    // Explicit ids are already the exact queue — a goofy=1 pass on them should
+    // redo the goofy take even when one exists.
+    : onlyOutfits.length
+    ? outfits
     : goofyBatch
     ? outfits.filter((o) => !o.goofy_render_path)
     : onlyUnrendered
