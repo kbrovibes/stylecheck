@@ -34,6 +34,118 @@ export async function GET(request: Request) {
 
   const summary: Record<string, string> = {};
 
+  /**
+   * Top-up mode: ?topup=1&user=<uuid>[&count=N&person=<uuid>]
+   *
+   * Composes ADDITIONAL fits built around pieces that are in no current fit,
+   * without touching the existing set. The nightly restyle below deliberately
+   * retires the old fits first, which makes it the wrong tool for filling a
+   * gap — this is the same "focus: unused" capability the user-facing generate
+   * endpoint has, reachable for an owner-scoped backlog run.
+   *
+   * `user` is required so a top-up can never sweep every account by accident.
+   */
+  if (url.searchParams.get("topup") === "1") {
+    const ownerId = url.searchParams.get("user");
+    if (!ownerId) {
+      return NextResponse.json(
+        { error: "topup=1 requires user=<owner uuid>" },
+        { status: 400 }
+      );
+    }
+    const count = Math.min(Math.max(Number(url.searchParams.get("count")) || 6, 1), 12);
+    const onlyPerson = url.searchParams.get("person");
+
+    const { data: s } = await admin
+      .from("sc_settings")
+      .select("*")
+      .eq("user_id", ownerId)
+      .maybeSingle();
+    const settings = (s ?? { ...DEFAULT_SETTINGS, user_id: ownerId }) as Settings;
+
+    let peopleQuery = admin
+      .from("sc_people")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .eq("deleted", false);
+    if (onlyPerson) peopleQuery = peopleQuery.eq("id", onlyPerson);
+    const { data: peopleData } = await peopleQuery;
+
+    for (const person of (peopleData ?? []) as Person[]) {
+      try {
+        const [{ data: itemsData }, { data: activeOutfits }] = await Promise.all([
+          admin
+            .from("sc_wardrobe_items")
+            .select("*")
+            .eq("person_id", person.id)
+            .eq("deleted", false)
+            .eq("enabled", true),
+          admin
+            .from("sc_outfits")
+            .select("item_ids")
+            .eq("person_id", person.id)
+            .eq("deleted", false),
+        ]);
+        const items = (itemsData ?? []) as WardrobeItem[];
+        if (items.length < 3) {
+          summary[person.id] = "too few items";
+          continue;
+        }
+        const used = new Set(
+          (activeOutfits ?? []).flatMap((o) => o.item_ids as string[])
+        );
+        const unused = items.filter((i) => !used.has(i.id));
+        if (!unused.length) {
+          summary[person.id] = "every piece already styled";
+          continue;
+        }
+
+        let weather = null;
+        if (person.lat && person.lon && person.place_name) {
+          weather = await getWeather({
+            lat: person.lat,
+            lon: person.lon,
+            place: person.place_name,
+          }).catch(() => null);
+        }
+
+        const plans = await composeOutfits(settings, {
+          profile: person,
+          items,
+          weather,
+          count: Math.min(count, unused.length),
+          mustFeature: unused.map(
+            (i) => `id=${i.id} | ${i.category} | ${i.name ?? i.subcategory ?? "item"}`
+          ),
+        });
+
+        if (plans.length) {
+          await admin.from("sc_outfits").insert(
+            plans.map((plan) => ({
+              user_id: ownerId,
+              person_id: person.id,
+              title: plan.title,
+              item_ids: plan.item_ids,
+              occasion: plan.occasion,
+              seasons: plan.seasons,
+              explanation: plan.explanation,
+              styling_notes: plan.styling_notes,
+              weather_note: plan.weather_note,
+              variations: plan.variations,
+              score: plan.score,
+              render_status: "none",
+            }))
+          );
+        }
+        summary[person.id] =
+          `composed ${plans.length} around ${unused.length} unused piece(s)`;
+      } catch (e) {
+        summary[person.id] = `topup error: ${(e as Error).message.slice(0, 120)}`;
+      }
+    }
+    return NextResponse.json({ mode: "topup", summary });
+  }
+
   // Phase 1: compose for accounts with a queued restyle — every person they own.
   const { data: queued } = await admin
     .from("sc_settings")
