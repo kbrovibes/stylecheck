@@ -17,6 +17,7 @@ export interface FitCard {
   goofyUrl: string | null;
   goofyLead: boolean; // stable random: which take leads in goofy mode
   degraded: boolean; // references pieces no longer in the wardrobe
+  manual: boolean; // hand-picked by the user rather than stylist-composed
   reaction: 1 | -1 | null;
   thumbs: { id: string; url: string | null }[];
 }
