@@ -65,7 +65,7 @@ export const INSIGHTS_JSON_SCHEMA = {
 export function summarize(a: Analysis): MatchSummary {
   const last = a.score[a.score.length - 1];
   const topShots = [...a.hits]
-    .filter((h) => h.speedKmh !== null)
+    .filter((h) => h.speedKmh !== null && h.reliable)
     .sort((x, y) => (y.speedKmh ?? 0) - (x.speedKmh ?? 0))
     .slice(0, 6)
     .map((h) => ({ atSec: round(h.t), by: h.by, kind: h.kind, speedKmh: h.speedKmh }));

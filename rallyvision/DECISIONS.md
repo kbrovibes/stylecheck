@@ -66,7 +66,8 @@ Autonomous decisions made while building (2026-10-30). Flag anything you'd chang
 - WebCodecs `VideoEncoder` + `mp4-muxer` → MP4 (H.264 when the browser can encode it, else VP9-in-MP4).
   Frame-accurate and faster than realtime; **drops audio** (muxing audio needs an AudioEncoder path — not
   done). Fallback: MediaRecorder on a canvas stream while the video plays → WebM with the original audio.
-  Headless Chromium in the sandbox lacks WebCodecs, so only the fallback path is covered by the e2e test.
+  The e2e run in headless Chromium exercised the WebCodecs path (H.264 `avc1.640028`, 831 frames, 5 MB for
+  the 28 s sample); the MediaRecorder fallback is exercised manually in Safari/Firefox.
 - A 1080×1350 "match card" PNG is also exportable for reels/stories.
 
 ## AI
@@ -80,3 +81,6 @@ Autonomous decisions made while building (2026-10-30). Flag anything you'd chang
   blocky players and a shuttle flying parabolas with ground truth (corners, rallies, winners). The Playwright
   e2e test (`tests/e2e.mjs`) runs the full flow headlessly and asserts fps probe, corner detection, rally
   and shot counts, plausible speeds, overlay rendering, score override, mock insights and video export.
+  Last run: all checks passed — corners within 14 px, 4/4 rallies aligned, 21/21 shots counted, speeds
+  21–119 km/h, MediaPipe found both (blocky!) players, MP4 exported. Analysis of the 28 s clip took ~260 s
+  in headless SwiftShader; a laptop GPU is several times faster.
