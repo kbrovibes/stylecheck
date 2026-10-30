@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone sibling app with its own lint config.
+    "rallyvision/**",
   ]),
 ]);
 

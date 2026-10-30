@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0f17;
+  --color-panel: #121826;
+  --color-panel-2: #1a2234;
+  --color-line: #263249;
+  --color-ink: #f1f5f9;
+  --color-muted: #94a3b8;
+  --color-near: #38bdf8;
+  --color-far: #fb923c;
+  --color-shuttle: #fde047;
+  --color-accent: #a3e635;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+}
+
+html, body { background: var(--color-bg); color: var(--color-ink); }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+
+.btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed bg-accent text-[#0b1220] hover:brightness-110; }
+.btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed bg-panel-2 text-ink hover:bg-line; }
+.card { @apply rounded-2xl border border-line bg-panel p-4; }
+.label { @apply text-[11px] font-semibold uppercase tracking-wider text-muted; }
+.input { @apply w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-sm text-ink outline-none focus:border-accent; }
+input[type=range] { accent-color: var(--color-accent); }
