@@ -86,7 +86,12 @@ async function screenWithGemini(src: string, duration: number): Promise<{ badmin
       if (fs.existsSync(out)) parts.push({ inline_data: { mime_type: "image/jpeg", data: fs.readFileSync(out).toString("base64") } });
     }
     if (!parts.length) return null;
-    parts.push({ text: "These are frames from one uploaded video. Is it footage of badminton being played (a match, rally or practice on a badminton court)? Answer as JSON." });
+    parts.push({ text: [
+      "These are 4 frames sampled from one uploaded video. Decide if it shows badminton play: a badminton court (net, court lines) with players, a rally, practice or drills.",
+      "Count as badminton: phone recordings, broadcasts, screen recordings, low quality or dark footage, and rendered/animated/simulated badminton play.",
+      "Answer badminton=false only when the video clearly is something else (another sport, people talking, scenery, pets, documents, games or animations unrelated to badminton).",
+      "Give confidence 0-1 in your answer and a one-sentence reason. Answer as JSON.",
+    ].join(" ") });
     const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
       method: "POST",
@@ -137,7 +142,7 @@ async function main() {
   const verdict = await screenWithGemini(src, duration);
   if (verdict) {
     await patch({ screen: { ...verdict, by: "gemini" } }, true);
-    if (!verdict.badminton && verdict.confidence >= 0.7) throw new Rejected(verdict.reason || "This doesn't look like badminton.");
+    if (!verdict.badminton && verdict.confidence >= 0.8) throw new Rejected(verdict.reason || "This doesn't look like badminton.");
   }
 
   // 2. analyse (same detector/tracker/event code as the browser)
