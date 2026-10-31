@@ -34,7 +34,7 @@ Without a key the `/api/insights` route returns deterministic template notes bui
 
 If a provider errors at runtime the route logs the error and falls back to the mock so the UI never breaks.
 
-## 3. Neural shuttle tracker — TrackNetV3 (wired, no weights shipped)
+## 3. Neural shuttle tracker — TrackNetV3 (wired, no weights shipped in the browser)
 
 The official checkpoints live on Google Drive (`TrackNetV3_ckpts.zip`, MIT licence) which the sandbox
 could not reach, and `download.pytorch.org` / `huggingface.co` were blocked, so I could not export ONNX.
@@ -56,17 +56,37 @@ torch.onnx.export(m, torch.zeros(1, 3*seq, 288, 512), "tracknetv3.onnx", opset_v
 PY
 ```
 
+The checkpoints are now downloadable with `curl` (see `worker/README.md`) and live in the Modal volume
+`rallyvision-weights`; the browser ONNX export below is still not done.
+
 Upload `tracknetv3.onnx` somewhere with CORS (Vercel Blob, S3, or `public/models/`) and set
 `NEXT_PUBLIC_TRACKNET_ONNX_URL=https://…/tracknetv3.onnx`. The UI then offers "TrackNetV3 neural tracker".
 Note: onnxruntime-web loads its WASM from jsDelivr by default (see `tracknet.ts`); self-host it the same
 way MediaPipe is self-hosted if you want zero third-party requests.
 
-## 4. Cloud GPU worker (reference code only)
+## 4. Modal GPU detector — ⚠️ built and tested; deploy blocked on a payment method (2026-10-31)
 
-`worker/modal_app.py` runs TrackNetV3 + YOLOv8-pose on a Modal T4. It is **untested** (no GPU, no
-PyTorch here). Deploy per `worker/README.md` and set `NEXT_PUBLIC_ML_WORKER_URL`. The UI already shows the
-"Cloud GPU worker" option (disabled until the URL is set); wiring the result into `runAnalysis` is a
-~30-line change in `lib/cv/pipeline.ts` using `lib/cv/cloud.ts`.
+`worker/modal_app.py` is the `rallyvision-detector` Modal app (TrackNetV3 + YOLO11s-pose on a T4) that the
+server worker calls in "Modal GPU" mode through `lib/worker/modal.ts`. Details and the API are in `worker/README.md`.
+
+Done:
+- Modal API token `rallyvision-cli` created (stored in `~/.modal.toml`, profile `kbrovibes`).
+- Volume `rallyvision-weights` holds `TrackNet_best.pt` + `InpaintNet_best.pt` (the Google Drive zip downloads
+  fine with `curl`); Secret `rallyvision-secret` holds `RALLYVISION_SECRET`.
+- Vercel `RALLYVISION_SECRET` set for Production + Development (same value as the Modal secret).
+- End-to-end CPU run on Modal (`RV_GPU=none modal run worker/modal_app.py::smoke …`) on the synthetic sample.
+
+**Blocked:** `modal deploy` stops with "Please add a payment method to use T4 GPU functions". The workspace is on
+Starter with $1 of credit. To lift it:
+
+1. Modal → Settings → Usage & billing → add a payment method (the Starter plan still includes its monthly free credit).
+2. From `rallyvision/`: `modal deploy worker/modal_app.py`. The endpoint is
+   `https://kbrovibes--rallyvision-detector-api.modal.run`.
+3. `printf %s https://kbrovibes--rallyvision-detector-api.modal.run | vercel env add MODAL_DETECT_URL production`
+   (repeat for `development`), then `vercel --prod`. `MODAL_DETECT_URL` is deliberately unset until the
+   endpoint is live, so the app doesn't offer a Modal mode that would fail.
+
+To redeploy after code changes, run `modal deploy worker/modal_app.py` again. The URL stays the same.
 
 ## 5. Real-footage validation
 

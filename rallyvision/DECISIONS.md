@@ -183,3 +183,25 @@ upload.
   detected client-side). The old all-in-browser flow lives on as **On this device** mode at `/local`. It's also the
   automatic fallback when cloud isn't configured.
 - **YouTube links are not supported** (ToS + YouTube blocks cloud IPs). Upload the file instead.
+## 2026-10-31 — Modal GPU detector (`worker/modal_app.py`, `lib/worker/modal.ts`)
+- **Scope:** replaces only the tracking step of the server worker. `POST /detect` starts a T4 job
+  (`detect.spawn`) and `GET /result/{call_id}` polls `FunctionCall.get(timeout=0)` plus a progress Dict.
+  Both need `x-rallyvision-secret`. The Node client polls every 3 s and gives up after 40 min.
+- **Shuttle = official TrackNetV3 `predict.py`, run in-process** (pinned commit, `--large_video --eval_mode weight`),
+  not a re-implementation. The video is normalised once with ffmpeg (fps / CFR / autorotate / trim) to 512×288,
+  TrackNet's own input size. That also keeps the median-background step's memory small (`--max_sample_num 300`).
+- **InpaintNet points are kept only inside gaps of ≤ 0.5 s that have real TrackNet detections on both sides**,
+  and they come back as `interp: true, conf: 0.6`. Unfiltered, InpaintNet filled every between-rally gap
+  (268 points on frames with no shuttle on the sample). That would merge rallies downstream, because a rally is
+  a continuous track. This is a general sanity rule (InpaintNet is for short occlusions), not a fit to the clip.
+- **Players = YOLO11s-pose** on every 2nd frame at imgsz 960. COCO-17 keypoints are mapped into the
+  MediaPipe-33 layout and clamped to the person box, so `PlayerAssigner.fromPoses` works unchanged. YOLO finds
+  essentially nobody in the blocky synthetic players (3 detections in 416 frames; MediaPipe did better there), so
+  pose quality is unverified until real footage is tested.
+- **Synthetic sample, CPU run on Modal** (the GPU deploy is blocked, see UNBLOCK §4): raw TrackNet gets 289/457
+  visible frames (63 %), all within 25 px, mean error 4.0 px, with no false positives. With gap-filtered InpaintNet:
+  82 % recall within 25 px and no points on invisible frames. Unfiltered it was 93 %, but with the 268
+  hallucinated points. The CPU tracker gets 47–69 % with a mean error of about 3.4 px. The clip is a rendered
+  cartoon, so expect TrackNet to do better, not worse, on real broadcast-like footage.
+- **Cost model:** T4 + 4 cores + 12 GiB ≈ $0.000243/s ≈ $0.88/h while a container runs. `scaledown_window=60`
+  and `min_containers=0`, so nothing is billed while idle.
