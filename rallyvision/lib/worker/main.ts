@@ -21,6 +21,7 @@ import { MotionPlayerDetector, PlayerAssigner } from "@/lib/cv/players";
 import { buildCalibration, toCourt } from "@/lib/cv/geometry";
 import { classifyHits, computeScore, computeStats, detectHits, segmentRallies, smoothTrack } from "@/lib/cv/events";
 import { buildIndex, drawOverlay, renderStatsCard } from "@/lib/render/overlay";
+import { detectWithModal } from "@/lib/worker/modal";
 
 const TMP = process.env.WORK_DIR ?? "/tmp/rallyvision";
 const ANALYSIS_WIDTH = 640;
@@ -104,37 +105,59 @@ async function main() {
   const tracker = new ShuttleTracker(aw, { toCourt: (p) => toCourt(cal, { x: p.x * scale, y: p.y * scale }) });
   const motion = new MotionPlayerDetector(aw, ah);
   const assigner = new PlayerAssigner(cal, spec.settings.mode === "doubles" ? 2 : 1, scale);
-  const shuttle: ShuttleSample[] = [];
+  let shuttle: ShuttleSample[] = [];
   const players: PlayerSample[] = [];
-  let exclude: Box[] = [];
-  // Slow running-average background: unlike frame differencing it also finds players who stand still.
-  const bg = new Float32Array(aw * ah);
-  const fg = new Uint8Array(aw * ah);
+  const useModal = process.env.DETECT_ENGINE === "modal";
   const tA = Date.now();
   let f = 0;
-  for await (const gray of rawFrames(["-v", "error", "-i", src, ...trimArgs, "-vf", `fps=${fps},scale=${aw}:${ah}:flags=bilinear`, "-f", "rawvideo", "-pix_fmt", "gray", "-"], aw * ah)) {
-    const t = f / fps;
-    const cands = det.detect({ gray }, exclude);
-    if (f === 0) for (let i = 0; i < bg.length; i++) bg[i] = gray[i];
-    const rate = f < fps * 2 ? 0.1 : 0.01;
-    for (let i = 0; i < bg.length; i++) {
-      const d = gray[i] - bg[i];
-      fg[i] = d > 28 || d < -28 ? 1 : det.motionMask[i];
-      bg[i] += rate * d;
+  if (useModal) {
+    // GPU path: TrackNetV3 shuttle + pose model on Modal; everything downstream is identical
+    const r = await detectWithModal({ videoUrl: spec.sourceUrl, trimSec: duration, fps, width: W, height: H },
+      (p) => patch({ state: "analyzing", phase: "Tracking on GPU (TrackNetV3)", progress: 0.5 * p, etaSec: null }));
+    shuttle = r.shuttle;
+    f = r.frames;
+    for (const pf of r.poses) {
+      const poses = pf.people.map((p) => ({ conf: p.conf, landmarks: p.landmarks.map((q) => ({ x: q.x / scale, y: q.y / scale })) }));
+      if (poses.length) players.push(...assigner.fromPoses(pf.f, pf.f / fps, poses).players);
     }
-    if (f % 2 === 0) {
-      const recent = shuttle.slice(-3).map((s) => ({ x: s.x / scale, y: s.y / scale }));
-      const boxes = motion.detect(fg, recent);
-      if (boxes.length) { const r = assigner.fromBoxes(f, t, boxes); players.push(...r.players); exclude = r.exclude; }
+  }
+  // CPU pass: the whole tracker when not on Modal; just players if the GPU pose model found too few
+  const cpuPlayers = !useModal || players.length < f * 0.2;
+  if (cpuPlayers) {
+    if (useModal) players.length = 0;
+    let cf = 0;
+    let exclude: Box[] = [];
+    // Slow running-average background: unlike frame differencing it also finds players who stand still.
+    const bg = new Float32Array(aw * ah);
+    const fg = new Uint8Array(aw * ah);
+    for await (const gray of rawFrames(["-v", "error", "-i", src, ...trimArgs, "-vf", `fps=${fps},scale=${aw}:${ah}:flags=bilinear`, "-f", "rawvideo", "-pix_fmt", "gray", "-"], aw * ah)) {
+      const t = cf / fps;
+      const cands = det.detect({ gray }, exclude);
+      if (cf === 0) for (let i = 0; i < bg.length; i++) bg[i] = gray[i];
+      const rate = cf < fps * 2 ? 0.1 : 0.01;
+      for (let i = 0; i < bg.length; i++) {
+        const d = gray[i] - bg[i];
+        fg[i] = d > 28 || d < -28 ? 1 : det.motionMask[i];
+        bg[i] += rate * d;
+      }
+      if (cf % 2 === 0) {
+        const recent = (useModal ? [] : shuttle.slice(-3)).map((s) => ({ x: s.x / scale, y: s.y / scale }));
+        const boxes = motion.detect(fg, recent);
+        if (boxes.length) { const r = assigner.fromBoxes(cf, t, boxes); players.push(...r.players); exclude = r.exclude; }
+      }
+      if (!useModal) {
+        const tr = tracker.step(cf, t, cands);
+        if (tr.retract) { let n = tr.retract.n; for (let k = shuttle.length - 1; k >= 0 && n > 0; k--) if (shuttle[k].tid === tr.retract.tid) { shuttle.splice(k, 1); n--; } }
+        for (const s of tr.samples) shuttle.push({ ...s, x: s.x * scale, y: s.y * scale });
+      }
+      cf++;
+      if (!useModal) f = cf;
+      if (cf % 30 === 0) {
+        const fpsDone = cf / ((Date.now() - tA) / 1000);
+        await patch({ state: "analyzing", phase: useModal ? "Finding players" : "Tracking shuttle & players", progress: (useModal ? 0.45 : 0) + (useModal ? 0.05 : 0.5) * (cf / frames), etaSec: Math.round((frames - cf) / fpsDone + frames / Math.max(1, fpsDone * 0.6)) });
+      }
     }
-    const tr = tracker.step(f, t, cands);
-    if (tr.retract) { let n = tr.retract.n; for (let k = shuttle.length - 1; k >= 0 && n > 0; k--) if (shuttle[k].tid === tr.retract.tid) { shuttle.splice(k, 1); n--; } }
-    for (const s of tr.samples) shuttle.push({ ...s, x: s.x * scale, y: s.y * scale });
-    f++;
-    if (f % 30 === 0) {
-      const fpsDone = f / ((Date.now() - tA) / 1000);
-      await patch({ state: "analyzing", phase: "Tracking shuttle & players", progress: 0.5 * (f / frames), etaSec: Math.round((frames - f) / fpsDone + frames / Math.max(1, fpsDone * 0.6)) });
-    }
+
   }
   timings.analysisMs = Date.now() - tA;
   shuttle.sort((a, b) => a.f - b.f);
@@ -158,7 +181,7 @@ async function main() {
     rallies,
     score,
     stats,
-    engine: { shuttle: "classical", players: players.length ? "motion" : "none", analysisWidth: aw, stride: 1, ms: timings.analysisMs, debug: { ...tracker.debug, ...det.debug } },
+    engine: { shuttle: useModal ? "cloud" : "classical", players: !players.length ? "none" : useModal && !cpuPlayers ? "pose" : "motion", analysisWidth: aw, stride: 1, ms: timings.analysisMs, debug: { ...tracker.debug, ...det.debug } },
     settings: spec.settings,
   };
 

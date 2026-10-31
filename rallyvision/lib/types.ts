@@ -99,7 +99,7 @@ export type VideoMeta = { width: number; height: number; fps: number; duration: 
 
 export type EngineInfo = {
   shuttle: "classical" | "tracknet" | "cloud";
-  players: "mediapipe" | "motion" | "none";
+  players: "mediapipe" | "pose" | "motion" | "none";
   analysisWidth: number;
   stride: number;
   ms: number;
