@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:e2e": "node tests/e2e.mjs",
-    "test:track": "node --experimental-transform-types --import ./tests/register.mjs tests/offline.mjs",
+    "test:track": "node --import ./tests/register.mjs tests/offline.mjs",
     "sample:make": "python3 tests/make_synthetic.py public/sample/synthetic-rally.mp4"
   },
   "dependencies": {

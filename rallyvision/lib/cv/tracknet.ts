@@ -30,7 +30,17 @@ export class TrackNetEngine implements ShuttleEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private tmp: HTMLCanvasElement;
-  private constructor(private session: OrtSession, private ort: { Tensor: new (type: string, data: Float32Array, dims: number[]) => unknown }, readonly seqLen: number, readonly width: number, readonly height: number) {
+  private session: OrtSession;
+  private ort: { Tensor: new (type: string, data: Float32Array, dims: number[]) => unknown };
+  readonly seqLen: number;
+  readonly width: number;
+  readonly height: number;
+  private constructor(session: OrtSession, ort: { Tensor: new (type: string, data: Float32Array, dims: number[]) => unknown }, seqLen: number, width: number, height: number) {
+    this.session = session;
+    this.ort = ort;
+    this.seqLen = seqLen;
+    this.width = width;
+    this.height = height;
     this.canvas = document.createElement("canvas");
     this.canvas.width = TN_W; this.canvas.height = TN_H;
     this.ctx = this.canvas.getContext("2d", { willReadFrequently: true })!;

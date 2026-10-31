@@ -38,7 +38,11 @@ export class ClassicalShuttleDetector implements ShuttleEngine {
   readonly maxDim: number;
   readonly debug: Record<string, number> = { blobs: 0, excluded: 0, kept: 0 };
 
-  constructor(readonly width: number, readonly height: number, opts: { threshold?: number } = {}) {
+  readonly width: number;
+  readonly height: number;
+  constructor(width: number, height: number, opts: { threshold?: number } = {}) {
+    this.width = width;
+    this.height = height;
     const n = width * height;
     this.mask = new Uint8Array(n);
     this.labels = new Int32Array(n);
@@ -169,7 +173,9 @@ class Track {
   /** coasted samples waiting for the track to survive the gap */
   pending: ShuttleSample[] = [];
   emitted = 0;
-  constructor(readonly id: number, init: ShuttleSample[], vel: Pt) {
+  readonly id: number;
+  constructor(id: number, init: ShuttleSample[], vel: Pt) {
+    this.id = id;
     this.samples = init.map((s) => ({ ...s, tid: id }));
     this.pos = { x: init[init.length - 1].x, y: init[init.length - 1].y };
     this.startPos = { x: init[0].x, y: init[0].y };
@@ -230,7 +236,9 @@ export class ShuttleTracker {
    *  compressed far court is judged fairly. */
   private toCourt: ((p: Pt) => Pt) | null;
 
-  constructor(readonly width: number, opts: { maxMisses?: number; toCourt?: (p: Pt) => Pt } = {}) {
+  readonly width: number;
+  constructor(width: number, opts: { maxMisses?: number; toCourt?: (p: Pt) => Pt } = {}) {
+    this.width = width;
     this.s = width / 640;
     this.toCourt = opts.toCourt ?? null;
     this.maxMisses = opts.maxMisses ?? 7;

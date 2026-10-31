@@ -84,3 +84,17 @@ Autonomous decisions made while building (2026-10-30). Flag anything you'd chang
   Last run: all checks passed — corners within 14 px, 4/4 rallies aligned, 21/21 shots counted, speeds
   21–119 km/h, MediaPipe found both (blocky!) players, MP4 exported. Analysis of the 28 s clip took ~260 s
   in headless SwiftShader; a laptop GPU is several times faster.
+
+## 2026-10-30 — local resume (macOS, Node 26.3, ffmpeg 9.0)
+- **Erasable-only TypeScript.** Node 26 dropped `--experimental-transform-types`, so `test:track` failed on
+  the `readonly x: number` constructor parameter properties. Rewrote them as plain fields and enabled
+  `erasableSyntaxOnly` in tsconfig; `test:track` now runs with plain `node --import`. Behaviour unchanged
+  (old code under tsx gives identical benchmark numbers).
+- **The offline benchmark depends on the resize filter.** With ffmpeg 9's default bicubic scaler,
+  recall is 47 % and 8/21 hits match (the cloud run recorded 63 % and 14/21). Bilinear gives 56 % and area
+  gives 69 % with 15/21 hits. The detector thresholds are tuned closely to how the synthetic clip was
+  scaled, so real-footage tuning matters more than these numbers suggest.
+- **E2E (headless Chromium 156) passes, but the assertions are loose.** It found 3 rallies against a
+  truth of 4 (rallies 1 and 2 merged across a 2.1 s gap), counted 21/21 shots, and the winner heuristic
+  was right on 2/4 rallies. The 4/4 "aligned" check passes because the merged rally overlaps both truth
+  rallies. Known gap to fix during real-footage tuning.

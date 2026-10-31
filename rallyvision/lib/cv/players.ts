@@ -82,7 +82,11 @@ export class MotionPlayerDetector {
   readonly gh: number;
   private energy: Float32Array;
   private labels: Int32Array;
-  constructor(readonly width: number, readonly height: number) {
+  readonly width: number;
+  readonly height: number;
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
     this.cell = Math.max(8, Math.round(width / 40));
     this.gw = Math.ceil(width / this.cell);
     this.gh = Math.ceil(height / this.cell);
@@ -157,7 +161,14 @@ export type PlayerFrameResult = { players: PlayerSample[]; exclude: Box[] };
 
 /** Shared bookkeeping: assigns detections to sides/ids using the court homography. */
 export class PlayerAssigner {
-  constructor(private cal: CourtCalibration, private perSide: number, private scale: number) {}
+  private cal: CourtCalibration;
+  private perSide: number;
+  private scale: number;
+  constructor(cal: CourtCalibration, perSide: number, scale: number) {
+    this.cal = cal;
+    this.perSide = perSide;
+    this.scale = scale;
+  }
 
   fromPoses(f: number, t: number, poses: RawPose[]): PlayerFrameResult {
     const s = this.scale;
