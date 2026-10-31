@@ -1,25 +1,63 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
-  --color-bg: #0b0f17;
-  --color-panel: #121826;
-  --color-panel-2: #1a2234;
-  --color-line: #263249;
-  --color-ink: #f1f5f9;
-  --color-muted: #94a3b8;
-  --color-near: #38bdf8;
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-subtle: #f4f4f5;
+  --color-line: #e7e7ea;
+  --color-line-strong: #d4d4d8;
+  --color-ink: #0a0a0b;
+  --color-ink-2: #3f3f46;
+  --color-muted: #71717a;
+  --color-near: #2563eb;
+  --color-far: #ea580c;
+  --color-accent: #0a0a0b;
+  --color-accent-ink: #ffffff;
+  --color-ok: #15803d;
+  --color-warn: #b45309;
+  --color-danger: #b91c1c;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-geist), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --shadow-card: 0 1px 2px rgba(10, 10, 11, 0.04), 0 1px 1px rgba(10, 10, 11, 0.02);
+  --shadow-pop: 0 12px 32px -12px rgba(10, 10, 11, 0.18), 0 2px 6px rgba(10, 10, 11, 0.05);
+}
+
+[data-theme="dark"] {
+  --color-bg: #09090b;
+  --color-surface: #111113;
+  --color-subtle: #18181b;
+  --color-line: #232327;
+  --color-line-strong: #34343a;
+  --color-ink: #f4f4f5;
+  --color-ink-2: #d4d4d8;
+  --color-muted: #8b8b94;
+  --color-near: #60a5fa;
   --color-far: #fb923c;
-  --color-shuttle: #fde047;
-  --color-accent: #a3e635;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+  --color-accent: #f4f4f5;
+  --color-accent-ink: #09090b;
+  --color-ok: #4ade80;
+  --color-warn: #fbbf24;
+  --color-danger: #f87171;
 }
 
 html, body { background: var(--color-bg); color: var(--color-ink); }
-body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+.font-display { font-family: var(--font-display); letter-spacing: -0.025em; }
 
-.btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed bg-accent text-[#0b1220] hover:brightness-110; }
-.btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed bg-panel-2 text-ink hover:bg-line; }
-.card { @apply rounded-2xl border border-line bg-panel p-4; }
-.label { @apply text-[11px] font-semibold uppercase tracking-wider text-muted; }
-.input { @apply w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-sm text-ink outline-none focus:border-accent; }
-input[type=range] { accent-color: var(--color-accent); }
+@utility btn { @apply inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-[background,color,opacity,transform] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40; }
+@utility btn-primary { @apply btn bg-accent text-accent-ink hover:opacity-90; }
+@utility btn-secondary { @apply btn border border-line bg-surface text-ink shadow-[var(--shadow-card)] hover:bg-subtle; }
+@utility btn-ghost { @apply btn text-ink-2 hover:bg-subtle hover:text-ink; }
+@utility btn-icon { @apply inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-2 transition hover:bg-subtle hover:text-ink active:scale-95 disabled:opacity-40; }
+@utility card { @apply rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]; }
+@utility label { @apply text-xs font-medium text-muted; }
+@utility eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
+@utility input { @apply h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-ink-2 focus:ring-4 focus:ring-ink/5; }
+@utility num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+input[type="range"] { accent-color: var(--color-ink); }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

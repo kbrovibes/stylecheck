@@ -38,7 +38,8 @@ try {
   await page.screenshot({ path: path.join(OUT, "01-landing.png") });
   assert(await page.getByTestId("sample").isVisible(), "sample button visible");
 
-  console.log("2. load sample + calibrate");
+  console.log("2. load sample + calibrate (on-device mode at /local)");
+  await page.goto(BASE + "/local", { waitUntil: "networkidle" });
   await page.getByTestId("sample").click();
   await page.waitForFunction(() => window.__rallyvision?.getStep() === "calibrate", null, { timeout: 60_000 });
   const meta = await page.evaluate(() => window.__rallyvision.getMeta());

@@ -146,3 +146,40 @@ Tried and dropped:
 - **Lost-in-flight test without the hitter**, using projected velocity or image-y only. A shuttle coming down onto
   the far half projects as moving toward the camera, so it called real landings "lost".
 - Thresholds are not sensitive: the image-upturn speed gave identical results from 0.3 to 1.5 m/s.
+
+## 2026-10-31: cloud jobs, shared library, redesign (local session)
+Product asks: mobile-first, sleek light UI, a settings page, nicer and more accurate overlays, async processing you
+can close the app on, a public library of every job and video (no login for now), trim long clips, compress before
+upload.
+
+- **Processing moved to the server by default.** The phone (1) optionally trims to the first 90 s (60/90/120 in
+  Settings) and compresses to ≤720p H.264 with WebCodecs, (2) uploads straight to Vercel Blob (client upload, multipart),
+  (3) calls `/api/jobs/:id/start`, then can close the app. In-browser processing on phones was ~10 fps at best;
+  an 8-min clip would have needed the tab open for 30+ minutes.
+- **Worker = Vercel Sandbox, not a Function.** The team is on Hobby: Functions max out at 300 s, Sandbox sessions at 45 min
+  (4 vCPU). `start` boots a VM from a prepared snapshot (`scripts/make-sandbox-snapshot.mjs`: Node 24, ffmpeg,
+  fonts-inter, @napi-rs/canvas, @vercel/blob, @upstash/redis; id in `SANDBOX_SNAPSHOT_ID`). It copies in
+  `public/worker/worker.mjs` (esbuild bundle of `lib/worker/main.ts`, built before `next build`) plus a job spec, and runs
+  it detached. The worker calls `/api/jobs/:id/finished` so the VM stops immediately; otherwise it dies at its
+  duration-based timeout (10–45 min).
+- **Same CV code on the server.** The worker reuses `lib/cv/*` (tracker, events, score) and `lib/render/overlay.ts`
+  unchanged: ffmpeg decodes gray frames, Skia (@napi-rs/canvas) draws transparent overlay frames, and ffmpeg composites
+  them over the source and keeps the audio. I chose this over a headless browser because headless Chromium builds often
+  lack H.264 decode, and seeking frame by frame is slow. 28 s sample: 1.3 s VM boot + 9.8 s processing.
+- **Players on the server CPU** use a slow running-average background model plus the existing motion-blob detector
+  (MediaPipe Pose is browser-only). Frame differencing alone found 22 player samples on the sample; with the background
+  model, 383. Feet positions are coarse. The **Modal GPU mode** (TrackNetV3 + pose model) replaces the detection step when configured.
+- **Job state in Upstash Redis** (Marketplace), files in Vercel Blob (`rallyvision-media`, public). Jobs: `job:{id}` JSON
+  plus a `jobs` sorted set. Each job has a random edit key (hash stored), so only the uploading browser can patch or delete it.
+  Everyone can list and view everything (no login, by request). Rate limits: 40 jobs/IP/day, 300/day total. Stalled = no
+  heartbeat for 45 s.
+- **Overlays redesigned** (`lib/render/overlay.ts`): glass score bug with rally footer, point banner, speed badges with
+  leader lines only for *reliable* speeds (toggle for rough ones), trails that break at gaps and track switches (they used
+  to join unrelated tracks), ground rings sized from the court geometry (0.35 m), smoothed player positions, minimap
+  without the misleading ground projection of the airborne shuttle. Layout units are `min(W,H)/720` so portrait clips
+  work. Fixed a bug where on-device exports below source resolution misplaced the minimap.
+- **UI**: light theme by default (dark/system in Settings), Inter + Geist, mobile-first sheets. Settings page lists every
+  option and greys out unsupported ones with the reason (server capabilities from `/api/config`, browser capabilities
+  detected client-side). The old all-in-browser flow lives on as **On this device** mode at `/local`. It's also the
+  automatic fallback when cloud isn't configured.
+- **YouTube links are not supported** (ToS + YouTube blocks cloud IPs). Upload the file instead.

@@ -35,23 +35,23 @@ export default function StatsPanel({ analysis }: { analysis: Analysis }) {
     ["Distance", `${stats.playerDistanceM.near}m / ${stats.playerDistanceM.far}m`, `${settings.nearLabel} / ${settings.farLabel}`],
   ];
   return (
-    <div className="card p-3">
+    <div className="card p-4">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-base font-bold">Match stats</div>
+        <div className="text-sm font-semibold">Match stats</div>
         <div className="text-[11px] text-muted">engine: {engine.shuttle} shuttle · {engine.players} players · {engine.analysisWidth}p · {(engine.ms / 1000).toFixed(1)}s</div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {tiles.map(([k, v, sub]) => (
-          <div key={k} className="rounded-xl bg-panel-2 p-3">
-            <div className="label">{k}</div>
-            <div className="mt-1 text-xl font-extrabold tabular-nums">{v}</div>
+          <div key={k} className="rounded-xl bg-subtle p-3">
+            <div className="eyebrow">{k}</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">{v}</div>
             {sub && <div className="text-[11px] text-muted">{sub}</div>}
           </div>
         ))}
       </div>
       <div className="mt-3">
         <div className="label mb-1">Where rallies ended ({settings.nearLabel} left → {settings.farLabel} right)</div>
-        <canvas ref={heatRef} width={560} height={240} className="w-full rounded-lg bg-emerald-900/30" />
+        <canvas ref={heatRef} width={560} height={240} className="w-full rounded-lg bg-subtle" />
       </div>
     </div>
   );

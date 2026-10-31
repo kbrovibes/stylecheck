@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Analysis } from "@/lib/types";
 import { buildIndex, drawOverlay, type OverlayOptions } from "@/lib/render/overlay";
 import { seekTo } from "@/lib/video/frames";
+import { IconNext, IconPause, IconPlay, IconPrev } from "@/components/Icons";
 
 type Props = {
   video: HTMLVideoElement;
@@ -88,31 +89,31 @@ export default function Player({ video, analysis, overlay, onOverlay, seekReq }:
   const toggle = () => { if (video.paused) void video.play(); else video.pause(); };
   const stepFrame = (d: number) => { video.pause(); void seekTo(video, video.currentTime + d / fps); };
 
-  const toggles: Array<[keyof OverlayOptions, string]> = [["trail", "Trail"], ["speed", "Speed"], ["court", "Court"], ["players", "Players"], ["skeleton", "Skeleton"], ["minimap", "Minimap"], ["score", "Score"]];
+  const toggles: Array<[keyof OverlayOptions, string]> = [["trail", "Trail"], ["speed", "Speed"], ["players", "Players"], ["skeleton", "Skeleton"], ["minimap", "Minimap"], ["score", "Score"], ["banner", "Points"], ["court", "Court"]];
 
   return (
-    <div className="card p-3">
-      <div ref={hostRef} className="relative w-full overflow-hidden rounded-xl bg-black" style={{ aspectRatio: `${analysis.video.width} / ${analysis.video.height}` }}>
+    <div className="card p-4">
+      <div ref={hostRef} className="relative w-full overflow-hidden rounded-2xl bg-black" style={{ aspectRatio: `${analysis.video.width} / ${analysis.video.height}` }}>
         <canvas ref={canvasRef} data-testid="overlay-canvas" className="pointer-events-none absolute inset-0 h-full w-full" />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn-ghost" onClick={() => stepFrame(-1)} title="Previous frame">⏮</button>
-        <button className="btn-primary min-w-20" onClick={toggle}>{playing ? "Pause" : "Play"}</button>
-        <button className="btn-ghost" onClick={() => stepFrame(1)} title="Next frame">⏭</button>
-        <select className="input w-auto" value={rate} onChange={(e) => setRate(parseFloat(e.target.value))}>
+        <button className="btn-icon" onClick={() => stepFrame(-1)} title="Previous frame" aria-label="Previous frame"><IconPrev /></button>
+        <button className="btn-primary w-11 px-0" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>{playing ? <IconPause size={16} /> : <IconPlay size={16} />}</button>
+        <button className="btn-icon" onClick={() => stepFrame(1)} title="Next frame" aria-label="Next frame"><IconNext /></button>
+        <select className="input h-9 w-auto rounded-full" value={rate} onChange={(e) => setRate(parseFloat(e.target.value))}>
           {[0.25, 0.5, 1, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}
         </select>
-        <span className="ml-auto text-xs tabular-nums text-muted">{t.toFixed(2)}s / {analysis.video.duration.toFixed(1)}s · frame {Math.round(t * fps)}</span>
+        <span className="num ml-auto text-xs text-muted">{t.toFixed(2)}s / {analysis.video.duration.toFixed(1)}s · frame {Math.round(t * fps)}</span>
       </div>
       <div className="relative mt-2 h-8">
         {/* rally bands */}
-        <div className="absolute inset-x-0 top-3 h-2 rounded-full bg-panel-2">
+        <div className="absolute inset-x-0 top-3 h-2 rounded-full bg-subtle">
           {analysis.rallies.map((r) => (
             <button
               key={r.id}
               title={`Rally ${r.id + 1}: ${r.hits.length} shots`}
               onClick={() => { video.pause(); void seekTo(video, r.startT); }}
-              className="absolute top-0 h-2 rounded-full bg-accent/70 hover:bg-accent"
+              className="absolute top-0 h-2 rounded-full bg-ink/50 hover:bg-ink"
               style={{ left: `${(100 * r.startT) / analysis.video.duration}%`, width: `${Math.max(0.5, (100 * (r.endT - r.startT)) / analysis.video.duration)}%` }}
             />
           ))}
@@ -120,9 +121,9 @@ export default function Player({ video, analysis, overlay, onOverlay, seekReq }:
         <input type="range" className="absolute inset-x-0 top-0 w-full opacity-80" min={0} max={analysis.video.duration} step={1 / fps} value={t}
           onChange={(e) => { video.pause(); const v = parseFloat(e.target.value); setT(v); void seekTo(video, v); }} />
       </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto">
         {toggles.map(([k, label]) => (
-          <button key={k} onClick={() => onOverlay({ ...overlay, [k]: !overlay[k] })} className={`rounded-full px-3 py-1 text-xs font-semibold ${overlay[k] ? "bg-accent text-[#0b1220]" : "bg-panel-2 text-muted"}`}>{label}</button>
+          <button key={k} onClick={() => onOverlay({ ...overlay, [k]: !overlay[k] })} className={`h-7 shrink-0 rounded-full px-3 text-xs font-medium transition ${overlay[k] ? "bg-ink text-bg" : "bg-subtle text-muted"}`}>{label}</button>
         ))}
       </div>
     </div>

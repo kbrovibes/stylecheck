@@ -9,24 +9,24 @@ export default function RallyList({ analysis, onOverride, onJump }: Props) {
   const name = (s: "near" | "far" | null) => (s === "near" ? nearLabel : s === "far" ? farLabel : "—");
   const scoreAfter = (r: Rally) => analysis.score.find((s) => s.f === r.endF);
   return (
-    <div className="card p-3">
+    <div className="card p-4">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-base font-bold">Rallies &amp; score</div>
+        <div className="text-sm font-semibold">Rallies &amp; score</div>
         <div className="text-xs text-muted">{analysis.rallies.length} rallies · click to jump · fix winners inline</div>
       </div>
       {analysis.rallies.length === 0 && (
-        <div className="rounded-xl bg-panel-2 p-3 text-sm text-muted">No rallies found. Check the court corners, try a higher analysis resolution, or make sure the camera is static.</div>
+        <div className="rounded-xl bg-subtle p-3 text-sm text-muted">No rallies found. Check the court corners, try a higher analysis resolution, or make sure the camera is static.</div>
       )}
       <div className="max-h-[520px] space-y-1.5 overflow-auto pr-1">
         {analysis.rallies.map((r) => {
           const s = scoreAfter(r);
           const eff = r.override === undefined || r.override === null ? r.winner : r.override;
           return (
-            <div key={r.id} className="rounded-xl bg-panel-2 p-2.5 text-sm" data-testid="rally-row">
+            <div key={r.id} className="rounded-xl bg-subtle p-2.5 text-sm" data-testid="rally-row">
               <div className="flex items-center gap-2">
-                <button className="font-bold hover:text-accent" onClick={() => onJump(r.startT)}>Rally {r.id + 1}</button>
+                <button className="font-bold hover:text-near" onClick={() => onJump(r.startT)}>Rally {r.id + 1}</button>
                 <span className="text-xs text-muted">{r.startT.toFixed(1)}–{r.endT.toFixed(1)}s · {r.hits.length} shots{r.maxSpeedKmh ? ` · ${r.maxSpeedKmh} km/h` : ""}</span>
-                <span className="ml-auto rounded-md bg-bg px-2 py-0.5 text-xs font-bold tabular-nums">{s ? `${s.near}–${s.far}` : ""}</span>
+                <span className="ml-auto rounded-md bg-subtle px-2 py-0.5 text-xs font-bold tabular-nums">{s ? `${s.near}–${s.far}` : ""}</span>
               </div>
               <div className="mt-1.5 flex items-center gap-2">
                 <span className={`h-2 w-2 rounded-full ${eff === "near" ? "bg-near" : eff === "far" ? "bg-far" : "bg-muted"}`} />

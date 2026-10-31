@@ -24,7 +24,7 @@ export type ExportOptions = {
 export async function exportVideo(video: HTMLVideoElement, a: Analysis, opts: ExportOptions): Promise<ExportResult> {
   const t0 = performance.now();
   const maxW = opts.maxWidth ?? 1920;
-  const scale = Math.min(1, maxW / a.video.width);
+  const scale = Math.min(1, maxW / Math.min(a.video.width, a.video.height)); // maxWidth = short side (1080 -> 1080p)
   const W = Math.round((a.video.width * scale) / 2) * 2;
   const H = Math.round((a.video.height * scale) / 2) * 2;
   const canvas = document.createElement("canvas");
@@ -35,7 +35,6 @@ export async function exportVideo(video: HTMLVideoElement, a: Analysis, opts: Ex
     ctx.drawImage(video, 0, 0, W, H);
     ctx.save();
     ctx.scale(scale, scale);
-    // overlay expects original-size coordinates; canvas size for text scaling is handled via ctx.canvas (W,H) -> acceptable
     drawOverlay(ctx, a, idx, f, opts.overlay);
     ctx.restore();
   };
@@ -144,6 +143,8 @@ async function recordRealtime(video: HTMLVideoElement, a: Analysis, canvas: HTML
   await new Promise<void>((resolve) => {
     const onEnd = () => resolve();
     video.addEventListener("ended", onEnd, { once: true });
+    const onTime = () => { if (video.currentTime >= a.video.duration) { video.pause(); video.removeEventListener("timeupdate", onTime); resolve(); } };
+    video.addEventListener("timeupdate", onTime);
     opts.signal?.addEventListener("abort", () => { video.pause(); resolve(); }, { once: true });
   });
   running = false;

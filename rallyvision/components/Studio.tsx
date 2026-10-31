@@ -1,18 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_SETTINGS, type Analysis, type AnalysisSettings, type CourtCalibration, type Progress, type Pt, type VideoMeta } from "@/lib/types";
-import { grabFrame, loadVideo, probeFps, seekTo, type LoadedVideo } from "@/lib/video/frames";
+import Link from "next/link";
+import type { Analysis, AnalysisSettings, CourtCalibration, Progress, Pt, VideoMeta } from "@/lib/types";
+import { loadVideo, probeFps, seekTo, type LoadedVideo } from "@/lib/video/frames";
 import { buildCalibration, defaultCorners } from "@/lib/cv/geometry";
-import { detectCourtCorners } from "@/lib/cv/autocourt";
 import { runAnalysis, recompute } from "@/lib/cv/pipeline";
-import Calibrate from "@/components/Calibrate";
+import { resolveAnalysisSettings, updateSettings, useSettings } from "@/lib/settings";
+import { takePendingLocalVideo } from "@/lib/pending";
+import { keepAwake } from "@/lib/device";
+import { fmtDuration } from "@/lib/format";
+import AppHeader from "@/components/AppHeader";
+import CourtMarker from "@/components/CourtMarker";
 import Player from "@/components/Player";
 import RallyList from "@/components/RallyList";
 import StatsPanel from "@/components/StatsPanel";
 import ExportPanel from "@/components/ExportPanel";
 import Insights from "@/components/Insights";
-import { DEFAULT_OVERLAY, type OverlayOptions } from "@/lib/render/overlay";
+import { autoDetectCorners } from "@/components/NewVideo";
+import { Segmented } from "@/components/ui";
+import { IconUpload } from "@/components/Icons";
 
 type Step = "upload" | "calibrate" | "analyzing" | "review";
 
@@ -31,46 +38,41 @@ declare global {
   interface Window { __rallyvision?: TestHooks }
 }
 
+/** On-device mode: the whole pipeline runs in this tab; nothing is uploaded. */
 export default function Studio() {
+  const appSettings = useSettings();
   const [step, setStep] = useState<Step>("upload");
   const [loaded, setLoaded] = useState<LoadedVideo | null>(null);
   const [meta, setMeta] = useState<VideoMeta | null>(null);
   const [corners, setCorners] = useState<[Pt, Pt, Pt, Pt] | null>(null);
   const [cornerSource, setCornerSource] = useState<CourtCalibration["source"]>("default");
-  const [settings, setSettings] = useState<AnalysisSettings>(DEFAULT_SETTINGS);
+  const [overrides, setOverrides] = useState<Partial<AnalysisSettings>>({});
   const [progress, setProgress] = useState<Progress | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [overlay, setOverlay] = useState<OverlayOptions>(DEFAULT_OVERLAY);
   const [seekReq, setSeekReq] = useState<{ t: number; n: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rate, setRate] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const settings: AnalysisSettings = useMemo(() => ({ ...resolveAnalysisSettings(appSettings), ...overrides }), [appSettings, overrides]);
   const stateRef = useRef({ step, analysis, meta, corners });
   useEffect(() => { stateRef.current = { step, analysis, meta, corners }; }, [step, analysis, meta, corners]);
 
-  const autoDetect = useCallback(async (lv: LoadedVideo, at: number) => {
-    await seekTo(lv.video, at);
-    const small = grabFrame(lv.video, 640);
-    const img = small.getContext("2d")!.getImageData(0, 0, small.width, small.height);
-    const q = detectCourtCorners(img);
-    const s = lv.width / small.width;
-    if (q) return q.map((p) => ({ x: p.x * s, y: p.y * s })) as [Pt, Pt, Pt, Pt];
-    return null;
-  }, []);
-
-  const onSource = useCallback(async (src: File | string, name?: string) => {
+  const onSource = useCallback(async (src: File | string, name?: string, trimSec: number | null = null) => {
     setError(null);
     setBusy(true);
     try {
       const lv = await loadVideo(src);
       const fps = await probeFps(lv.video);
-      const m: VideoMeta = { width: lv.width, height: lv.height, fps, duration: lv.duration, frames: Math.floor(lv.duration * fps), name: name ?? (src instanceof File ? src.name : src.split("/").pop() ?? "video") };
+      const duration = trimSec ? Math.min(trimSec, lv.duration) : lv.duration;
       setLoaded(lv);
-      setMeta(m);
-      const q = await autoDetect(lv, Math.min(1, lv.duration / 3));
+      setMeta({ width: lv.width, height: lv.height, fps, duration, frames: Math.floor(duration * fps), name: name ?? (src instanceof File ? src.name : src.split("/").pop() ?? "video") });
+      const at = Math.min(1, lv.duration / 3);
+      const q = await autoDetectCorners(lv, at);
       setCorners(q ?? defaultCorners(lv.width, lv.height));
       setCornerSource(q ? "auto" : "default");
-      await seekTo(lv.video, Math.min(1, lv.duration / 3));
+      await seekTo(lv.video, at);
       setAnalysis(null);
       setStep("calibrate");
     } catch (e) {
@@ -78,7 +80,21 @@ export default function Studio() {
     } finally {
       setBusy(false);
     }
-  }, [autoDetect]);
+  }, []);
+
+  // video handed over from the library page
+  useEffect(() => {
+    const p = takePendingLocalVideo();
+    if (!p) return;
+    const duration = p.trimSec ? Math.min(p.trimSec, p.lv.duration) : p.lv.duration;
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time hand-off from another route */
+    setLoaded(p.lv);
+    setMeta({ width: p.lv.width, height: p.lv.height, fps: p.fps, duration, frames: Math.floor(duration * p.fps), name: p.file.name });
+    setCorners(p.corners);
+    setCornerSource(p.source);
+    setStep("calibrate");
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   const start = useCallback(async () => {
     if (!loaded || !meta || !corners) return;
@@ -88,23 +104,26 @@ export default function Studio() {
     const cal = buildCalibration(corners, settings.mode, cornerSource);
     const ac = new AbortController();
     abortRef.current = ac;
+    const release = appSettings.keepAwake ? await keepAwake() : () => {};
+    const t0 = performance.now();
     try {
-      const a = await runAnalysis(loaded.video, meta, cal, settings, setProgress, ac.signal);
+      const a = await runAnalysis(loaded.video, meta, cal, settings, (p) => { setProgress(p); if (p.done > 10) setRate(p.done / ((performance.now() - t0) / 1000)); }, ac.signal);
       setAnalysis(a);
       await seekTo(loaded.video, a.rallies[0]?.startT ?? 0);
       setStep("review");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setStep("calibrate");
+    } finally {
+      release();
     }
-  }, [loaded, meta, corners, settings, cornerSource]);
+  }, [loaded, meta, corners, settings, cornerSource, appSettings.keepAwake]);
 
-  // test / automation hooks
   useEffect(() => {
     window.__rallyvision = {
       loadUrl: (url, name) => onSource(url, name),
       setCorners: (c) => { setCorners(c); setCornerSource("manual"); },
-      setSettings: (s) => setSettings((prev) => ({ ...prev, ...s })),
+      setSettings: (s) => setOverrides((prev) => ({ ...prev, ...s })),
       start,
       getStep: () => stateRef.current.step,
       getAnalysis: () => stateRef.current.analysis,
@@ -114,127 +133,87 @@ export default function Studio() {
   }, [onSource, start]);
 
   const updateRally = useCallback((id: number, override: Analysis["rallies"][number]["override"]) => {
-    setAnalysis((a) => {
-      if (!a) return a;
-      const rallies = a.rallies.map((r) => (r.id === id ? { ...r, override } : r));
-      return recompute({ ...a, rallies });
-    });
+    setAnalysis((a) => (a ? recompute({ ...a, rallies: a.rallies.map((r) => (r.id === id ? { ...r, override } : r)) }) : a));
   }, []);
-
   const jump = useCallback((t: number) => setSeekReq((s) => ({ t, n: (s?.n ?? 0) + 1 })), []);
 
-  const header = (
-    <header className="flex items-center justify-between py-5">
-      <div className="flex items-center gap-3">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-[#0b1220] font-black">RV</div>
-        <div>
-          <div className="text-lg font-extrabold tracking-tight">RallyVision</div>
-          <div className="text-xs text-muted">Badminton video → shuttle track · speed · court map · score</div>
-        </div>
-      </div>
-      {step !== "upload" && (
-        <button className="btn-ghost" onClick={() => { abortRef.current?.abort(); setStep("upload"); setAnalysis(null); setLoaded(null); }}>
-          New video
-        </button>
-      )}
-    </header>
-  );
-
   return (
-    <main className="mx-auto max-w-7xl px-4 pb-20">
-      {header}
-      {error && <div className="card mb-4 border-red-500/40 bg-red-500/10 text-sm text-red-200">{error}</div>}
-
-      {step === "upload" && <Upload onFile={(f) => onSource(f)} onSample={() => onSource("/sample/synthetic-rally.mp4", "synthetic-rally.mp4")} busy={busy} />}
-
-      {step === "calibrate" && loaded && meta && corners && (
-        <Calibrate
-          video={loaded.video}
-          meta={meta}
-          corners={corners}
-          source={cornerSource}
-          onCorners={(c, src) => { setCorners(c); setCornerSource(src); }}
-          onAutoDetect={async (t) => { const q = await autoDetect(loaded, t); if (q) { setCorners(q); setCornerSource("auto"); } return !!q; }}
-          settings={settings}
-          onSettings={setSettings}
-          onAnalyze={start}
-        />
-      )}
-
-      {step === "analyzing" && progress && (
-        <div className="card mx-auto mt-10 max-w-xl text-center">
-          <div className="label">{progress.phase}</div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-panel-2">
-            <div className="h-full bg-accent transition-[width]" style={{ width: `${Math.round((100 * progress.done) / Math.max(1, progress.total))}%` }} />
+    <>
+      <AppHeader />
+      <main className="mx-auto max-w-6xl px-4 pb-24 pt-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="eyebrow">On-device mode</div>
+            <h1 className="font-display mt-1 text-2xl font-semibold">{meta ? meta.name : "Analyze on this device"}</h1>
           </div>
-          <div className="mt-3 text-sm text-muted">{progress.done} / {progress.total} frames{progress.detail ? ` · ${progress.detail}` : ""}</div>
-          <p className="mt-4 text-xs text-muted">Everything runs locally in this tab — the video never leaves your device. Keep the tab in the foreground.</p>
-          <button className="btn-ghost mt-4" onClick={() => abortRef.current?.abort()}>Stop early and show what was found</button>
+          {step !== "upload" && (
+            <button className="btn-secondary" onClick={() => { abortRef.current?.abort(); setStep("upload"); setAnalysis(null); setLoaded(null); }}>New video</button>
+          )}
         </div>
-      )}
+        {error && <div className="mb-4 rounded-2xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger">{error}</div>}
 
-      {step === "review" && loaded && analysis && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="space-y-4">
-            <Player video={loaded.video} analysis={analysis} overlay={overlay} onOverlay={setOverlay} seekReq={seekReq} />
-            <StatsPanel analysis={analysis} />
-            <Insights analysis={analysis} onJump={jump} />
+        {step === "upload" && (
+          <div className="card grid place-items-center px-6 py-16 text-center">
+            <p className="max-w-md text-sm text-ink-2">Everything runs in this browser tab and nothing is uploaded. Keep the tab open while it works. On phones, cloud mode (Settings) is much faster.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <button className="btn-primary" disabled={busy} onClick={() => inputRef.current?.click()}><IconUpload size={16} /> {busy ? "Opening…" : "Choose video"}</button>
+              <button className="btn-secondary" disabled={busy} onClick={() => onSource("/sample/synthetic-rally.mp4", "synthetic-rally.mp4")} data-testid="sample">Try the sample</button>
+              <Link href="/" className="btn-ghost">Back to library</Link>
+            </div>
+            <input ref={inputRef} data-testid="file-input" type="file" accept="video/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onSource(f, undefined, f.size > 0 ? null : null); }} />
           </div>
-          <div className="space-y-4">
-            <RallyList analysis={analysis} onOverride={updateRally} onJump={jump} />
-            <ExportPanel video={loaded.video} analysis={analysis} overlay={overlay} />
-          </div>
-        </div>
-      )}
-    </main>
-  );
-}
+        )}
 
-function Upload({ onFile, onSample, busy }: { onFile: (f: File) => void; onSample: () => void; busy: boolean }) {
-  const [drag, setDrag] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const features = useMemo(() => [
-    ["Shuttle trajectory", "Comet-trail of the shuttle, tracked frame by frame."],
-    ["Smash speed", "Estimated km/h badge on every shot, with the fastest highlighted."],
-    ["2D court tracker", "Top-down minimap with player positions and where rallies ended."],
-    ["Auto score", "Rally detection with a heuristic scorer you can correct in one click."],
-    ["Player tracking", "Pose skeletons and distance covered per player."],
-    ["Export", "Burn the overlays into an MP4/WebM, or share a stats card."],
-  ], []);
-  return (
-    <div className="grid gap-8 py-6 lg:grid-cols-2 lg:items-center">
-      <div>
-        <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl">
-          Turn your phone-recorded badminton game into a <span className="text-shuttle">broadcast-style</span> breakdown.
-        </h1>
-        <p className="mt-4 max-w-prose text-muted">
-          Upload a clip shot from behind the court. RallyVision tracks the shuttle, estimates shot speed, maps players onto a 2D court,
-          finds every rally and keeps score — all in your browser, nothing uploaded.
-        </p>
-        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-          {features.map(([t, d]) => (
-            <li key={t} className="rounded-xl border border-line bg-panel p-3">
-              <div className="text-sm font-bold">{t}</div>
-              <div className="text-xs text-muted">{d}</div>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div
-        className={`card flex min-h-[320px] flex-col items-center justify-center border-dashed text-center transition ${drag ? "border-accent bg-panel-2" : ""}`}
-        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-        onDragLeave={() => setDrag(false)}
-        onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}
-      >
-        <div className="text-5xl">🏸</div>
-        <div className="mt-3 text-lg font-bold">Drop a match video here</div>
-        <div className="mt-1 text-sm text-muted">MP4 / MOV / WebM · best results: static camera behind the baseline, whole court visible, 15–90s clips</div>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <button className="btn-primary" disabled={busy} onClick={() => inputRef.current?.click()}>{busy ? "Loading…" : "Choose video"}</button>
-          <button className="btn-ghost" disabled={busy} onClick={onSample} data-testid="sample">Try the sample clip</button>
-        </div>
-        <input ref={inputRef} data-testid="file-input" type="file" accept="video/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
-      </div>
-    </div>
+        {step === "calibrate" && loaded && meta && corners && (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div>
+              <div className="eyebrow mb-2">Mark the court</div>
+              <CourtMarker video={loaded.video} width={meta.width} height={meta.height} duration={meta.duration} corners={corners} source={cornerSource} mode={settings.mode}
+                onCorners={(c, src) => { setCorners(c); setCornerSource(src); }}
+                onAutoDetect={async (t) => { const q = await autoDetectCorners(loaded, t); if (q) { setCorners(q); setCornerSource("auto"); } return !!q; }} />
+            </div>
+            <div className="space-y-5">
+              <div>
+                <div className="eyebrow mb-2">Players</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input className="input" aria-label="Near side" value={appSettings.nearLabel} onChange={(e) => { updateSettings({ nearLabel: e.target.value }); setOverrides((o) => ({ ...o, nearLabel: undefined })); }} />
+                  <input className="input" aria-label="Far side" value={appSettings.farLabel} onChange={(e) => { updateSettings({ farLabel: e.target.value }); setOverrides((o) => ({ ...o, farLabel: undefined })); }} />
+                </div>
+                <div className="mt-3"><Segmented value={appSettings.mode} onChange={(v) => updateSettings({ mode: v })} options={[{ value: "singles", label: "Singles" }, { value: "doubles", label: "Doubles" }]} /></div>
+              </div>
+              <div className="rounded-2xl bg-subtle p-3 text-xs text-ink-2">
+                <span className="num">{fmtDuration(meta.duration)} · {meta.fps} fps · ~{Math.ceil(meta.frames / settings.stride)} frames</span> · {settings.analysisWidth}p · {settings.usePose ? "pose" : "motion"} players. <Link className="underline" href="/settings">Change engine</Link>
+              </div>
+              <button className="btn-primary h-12 w-full text-base" data-testid="analyze" onClick={start}>Analyze</button>
+            </div>
+          </div>
+        )}
+
+        {step === "analyzing" && progress && (
+          <div className="card mx-auto mt-6 max-w-md p-6 text-center">
+            <div className="eyebrow">{progress.phase}</div>
+            <div className="num font-display mt-3 text-5xl font-semibold">{Math.round((100 * progress.done) / Math.max(1, progress.total))}%</div>
+            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-subtle"><div className="h-full bg-ink transition-[width]" style={{ width: `${Math.round((100 * progress.done) / Math.max(1, progress.total))}%` }} /></div>
+            <div className="num mt-3 text-xs text-muted">{progress.done} / {progress.total} frames{rate ? ` · ${rate.toFixed(0)} fps · ${fmtDuration((progress.total - progress.done) / rate)} left` : ""}</div>
+            <p className="mt-4 text-xs text-muted">Runs locally in this tab. Keep it in the foreground.</p>
+            <button className="btn-secondary mt-4" onClick={() => abortRef.current?.abort()}>Stop and show results so far</button>
+          </div>
+        )}
+
+        {step === "review" && loaded && analysis && (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="min-w-0 space-y-6">
+              <Player video={loaded.video} analysis={analysis} overlay={appSettings.overlay} onOverlay={(o) => updateSettings({ overlay: o })} seekReq={seekReq} />
+              <StatsPanel analysis={analysis} />
+              <Insights analysis={analysis} onJump={jump} />
+            </div>
+            <div className="space-y-6">
+              <RallyList analysis={analysis} onOverride={updateRally} onJump={jump} />
+              <ExportPanel video={loaded.video} analysis={analysis} overlay={appSettings.overlay} />
+            </div>
+          </div>
+        )}
+      </main>
+    </>
   );
 }

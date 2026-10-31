@@ -57,7 +57,7 @@ export async function runAnalysis(
   const total = Math.ceil(meta.frames / settings.stride);
   let lastYield = performance.now();
 
-  for await (const frame of iterateFrames(video, { fps: meta.fps, stride: settings.stride, analysisWidth: aw, signal })) {
+  for await (const frame of iterateFrames(video, { fps: meta.fps, stride: settings.stride, analysisWidth: aw, endT: meta.duration, signal })) {
     // --- players (pose first so its torso boxes can mask the shuttle search)
     let gotPlayers = false;
     if (pose && i % poseEvery === 0) {

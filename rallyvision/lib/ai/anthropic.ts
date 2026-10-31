@@ -2,9 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { INSIGHTS_JSON_SCHEMA, type Insights, type MatchSummary } from "@/lib/ai/types";
 import { COACH_SYSTEM, coachUserMessage } from "@/lib/ai/prompt";
 
-export async function anthropicInsights(s: MatchSummary): Promise<Insights> {
+export async function anthropicInsights(s: MatchSummary, modelOverride?: string): Promise<Insights> {
   const client = new Anthropic();
-  const model = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+  const model = modelOverride || process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
   const response = await client.beta.messages.create({
     model,
     max_tokens: 4000,

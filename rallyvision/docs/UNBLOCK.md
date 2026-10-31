@@ -11,6 +11,16 @@ out of the upload. The project is **not Git-connected**, so pushes don't redeplo
 in Vercel → Settings → Git with Root Directory `rallyvision` and Production Branch `claude/rallyvision`; otherwise
 redeploy with `vercel --prod` from `rallyvision/`.
 
+## 1b. Cloud processing (Sandbox + Blob + Redis)
+
+- Blob store `rallyvision-media` (public): created and linked. ✅
+- Sandbox snapshot: created, `SANDBOX_SNAPSHOT_ID` set for production + development. ✅ Rebuild with
+  `node --env-file=.env.local scripts/make-sandbox-snapshot.mjs` when the worker's runtime deps change.
+- **Upstash Redis (job store): needs the account owner to accept Upstash's Marketplace terms once**
+  (https://vercel.com/kbrovibes-projects/~/integrations/accept-terms/upstash), then
+  `vercel integration add upstash/upstash-kv --name rallyvision-jobs`. Until then `/api/config` reports cloud as
+  unavailable and the app falls back to on-device mode.
+
 ## 2. AI coach notes (mocked today)
 
 Without a key the `/api/insights` route returns deterministic template notes built from the stats
