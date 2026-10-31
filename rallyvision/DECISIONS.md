@@ -205,3 +205,12 @@ upload.
   cartoon, so expect TrackNet to do better, not worse, on real broadcast-like footage.
 - **Cost model:** T4 + 4 cores + 12 GiB ≈ $0.000243/s ≈ $0.88/h while a container runs. `scaledown_window=60`
   and `min_containers=0`, so nothing is billed while idle.
+
+## 2026-10-31: Modal GPU detector live
+- Deployed `rallyvision-detector` (T4) at `https://kbrovibes--rallyvision-detector-api.us-east.modal.run`, which requires
+  the `x-rallyvision-secret` header (401 without it). `MODAL_DETECT_URL` and `RALLYVISION_SECRET` are set on Vercel (prod + dev).
+- Measured on the 28 s sample: 82.1 % shuttle recall within 25 px, 5.5 px mean error, 8 false points. Wall time 109 s
+  including cold start (~3.6x clip length), so an 8-minute clip needs ~25–30 min. That fits the 45-minute Sandbox session.
+- The GPU detector is called from inside the Sandbox job (`DETECT_ENGINE=modal`). Events, scoring and rendering stay in
+  the Sandbox. If the GPU pose model finds players in under 20 % of frames, the worker falls back to the CPU background
+  model for players.

@@ -16,10 +16,10 @@ redeploy with `vercel --prod` from `rallyvision/`.
 - Blob store `rallyvision-media` (public): created and linked. ✅
 - Sandbox snapshot: created, `SANDBOX_SNAPSHOT_ID` set for production + development. ✅ Rebuild with
   `node --env-file=.env.local scripts/make-sandbox-snapshot.mjs` when the worker's runtime deps change.
-- **Upstash Redis (job store): needs the account owner to accept Upstash's Marketplace terms once**
+- Upstash Redis `rallyvision-jobs`: provisioned and connected 2026-10-31. ✅ (Originally needed the account owner to accept Upstash's Marketplace terms once:
   (https://vercel.com/kbrovibes-projects/~/integrations/accept-terms/upstash), then
   `vercel integration add upstash/upstash-kv --name rallyvision-jobs`. Until then `/api/config` reports cloud as
-  unavailable and the app falls back to on-device mode.
+  unavailable and the app falls back to on-device mode.)
 
 ## 2. AI coach notes (mocked today)
 
