@@ -147,7 +147,8 @@ async function main() {
 
   // 2. analyse (same detector/tracker/event code as the browser)
   const W = spec.width, H = spec.height;
-  const aw = Math.min(ANALYSIS_WIDTH, W) & ~1, ah = even((H * aw) / W);
+  // the tracker was tuned at 640x360 (~230k px): keep that pixel budget for portrait clips too
+  const aw = Math.min(W, Math.round(Math.sqrt((ANALYSIS_WIDTH * 360 * W) / H))) & ~1, ah = even((H * aw) / W);
   const scale = W / aw;
   const cal = buildCalibration(spec.corners, spec.settings.mode, spec.cornerSource);
   const det = new ClassicalShuttleDetector(aw, ah);

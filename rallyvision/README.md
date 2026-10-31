@@ -63,3 +63,16 @@ video file ──seek frame by frame──▶ 640p luma ──▶ 3-frame differ
 Honest limitations: speeds are single-camera ground-plane estimates (±15–30 %), the winner heuristic is a guess you
 should glance at, and moving cameras break the motion-based detector. The neural (TrackNetV3) and cloud-GPU paths
 are wired but need weights / a worker — see [docs/UNBLOCK.md](docs/UNBLOCK.md).
+
+## Sharing with friends
+
+The app is open: no accounts, and every finished video is public in the shared library. Send people the link
+(https://rallyvision-one.vercel.app) or a video's `/v/<id>` page; links unfurl with the poster, players and score.
+
+- **Upload from a phone:** Upload video → mark the court → Upload & analyze. Long clips default to the first 90 s,
+  compressed on the phone (~25–30 MB). After the upload you can close the app; progress shows under **All uploads**.
+- **Guardrails:** clips that aren't badminton are removed automatically (Gemini check). There are 40 uploads/IP/day,
+  300/day in total, and 40 GPU jobs/day (`MODAL_JOBS_PER_DAY`). Stuck jobs time out daily (cron), and raw uploads are
+  deleted after rendering.
+- **Costs:** each job shows a rough compute cost (Sandbox CPU, Modal GPU, Gemini). On-device processing is $0.
+- **Filming tips:** steady phone behind the baseline, as high as you can, the whole court in view, landscape if possible.

@@ -233,3 +233,23 @@ upload.
   after a successful render. Owner-only Retry for failed or stalled jobs (start params kept server-side). Daily cleanup cron
   (`/api/cron/cleanup`, `CRON_SECRET`) fails jobs silent for >2 h and purges week-old failed uploads. Modal GPU is capped
   at `MODAL_JOBS_PER_DAY` (40), after which jobs fall back to CPU. The upload sheet says uploads are public.
+
+## 2026-10-31: first real footage (2 iCloud clips, doubles in a church gym; only the first 90 s used)
+Clips: iPhone HEVC 1920×1080 with rotation (portrait 1080×1920), ~30 fps, 10–11 min, 616–689 MB. Trimmed and compressed
+like the phone flow: 90 s at 720p came to ~29 MB, matching the app's upload estimate. Run locally with the server worker
+(dry mode, nothing published); the GPU run used a temporary unlisted Blob upload, deleted afterwards. The personal
+videos were not added to the public library.
+- **Court auto-detection failed** (gray floor, yellow multi-court lines, the near-left corner cut off by the portrait
+  frame). → The court marker now has a dark border so corners can be placed off-frame. Manual corners fit the painted
+  lines within ~10–20 px.
+- **Gemini badminton check:** accepted (correct).
+- **CPU engine:** 6–8 rallies, 65–70 shots in 90 s. The shuttle trail follows the real shuttle against the wall. The near
+  player gets a ring; a spectator's foot at the frame edge was picked up as "Near 2"; far players were missed.
+  Analysis took 348 s at 640×1138 (~170k candidate blobs). → Analysis now keeps the 640×360 pixel budget for portrait
+  (360×640): 126 s, similar output.
+- **Modal GPU engine:** 10 rallies, 33 shots. The pose model puts the near player's ring exactly at the feet; far players
+  are still too small. GPU detection 315 s for 90 s of video (~3.5× real time).
+- **Speeds:** none passed the reliability rule on this low, behind-the-court portrait angle (projections leave the
+  court). The UI shows no speed badges rather than wrong ones. Real speeds need a higher camera or 3D shuttle-height modelling.
+- **Point banner** collided with the score bug on portrait video; it now sits near the bottom on portrait frames.
+- Winners and rallies have no ground truth for these clips; treat the score as a guess the uploader should check.

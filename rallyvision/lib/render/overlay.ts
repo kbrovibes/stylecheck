@@ -411,7 +411,9 @@ function drawPointBanner(ctx: CanvasRenderingContext2D, a: Analysis, f: number, 
     ctx.font = font(800, 16 * u); const tw = ctx.measureText(title).width + title.length * 1.2 * u;
     ctx.font = font(700, 16 * u); const sw = ctx.measureText(score).width;
     const w = tw + sw + 64 * u, h = 40 * u;
-    const x = W / 2 - w / 2, y = 20 * u + (1 - k) * -12 * u;
+    // portrait frames are too narrow for a top-centre banner next to the score bug: put it near the bottom
+    const H = a.video.height;
+    const x = W / 2 - w / 2, y = (W < H * 1.2 ? H - h - 44 * u : 20 * u) + (1 - k) * -12 * u;
     glass(ctx, x, y, w, h, h / 2, u);
     ctx.fillStyle = sideColor(win); ctx.beginPath(); ctx.arc(x + 20 * u, y + h / 2, 5 * u, 0, Math.PI * 2); ctx.fill();
     ctx.textBaseline = "middle"; ctx.fillStyle = C.text; ctx.font = font(800, 16 * u);
