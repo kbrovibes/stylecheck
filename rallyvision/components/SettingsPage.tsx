@@ -10,12 +10,23 @@ import { Segmented, Switch, Unavailable } from "@/components/ui";
 import { IconCheck, IconX } from "@/components/Icons";
 
 export default function SettingsPage() {
-  const s = useSettings();
+  const saved = useSettings();
+  const [draft, setDraft] = useState<AppSettings | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
+  const s = draft ?? saved;
+  const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(saved);
   const cfg = useServerConfig();
   const [caps, setCaps] = useState<Capabilities | null>(null);
   useEffect(() => { void detectCapabilities().then(setCaps); }, []);
-  const set = (p: Partial<AppSettings>) => updateSettings(p);
-  const ov = (p: Partial<OverlayOptions>) => updateSettings({ overlay: { ...s.overlay, ...p } });
+  const set = (p: Partial<AppSettings>) => { setJustSaved(false); setDraft({ ...(draft ?? saved), ...p }); };
+  const ov = (p: Partial<OverlayOptions>) => set({ overlay: { ...s.overlay, ...p } });
+  const save = () => { if (draft) updateSettings(draft); setDraft(null); setJustSaved(true); setTimeout(() => setJustSaved(false), 2500); };
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
   const cloud = cfg?.processing.cloud ?? false, modal = cfg?.processing.modal ?? false;
   const eff = effectiveProcessing(s.processing, cfg);
   const local = eff === "device";
@@ -23,9 +34,9 @@ export default function SettingsPage() {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-4 pb-24 pt-8">
+      <main className="mx-auto max-w-3xl px-4 pb-36 pt-8">
         <h1 className="font-display text-3xl font-semibold">Settings</h1>
-        <p className="mt-1 text-sm text-muted">Saved on this device. Greyed-out options need setup on the server or aren&apos;t supported by this browser.</p>
+        <p className="mt-1 text-sm text-muted">Saved on this device when you press Save. Greyed-out options need setup on the server or aren&apos;t supported by this browser.</p>
 
         <Section title="Processing" note="Where the analysis runs.">
           <Row label="Mode" desc={
@@ -162,9 +173,20 @@ export default function SettingsPage() {
         </Section>
 
         <div className="mt-10 flex justify-end">
-          <button className="btn-ghost text-danger" onClick={() => { if (window.confirm("Reset all settings to defaults?")) resetSettings(); }}>Reset to defaults</button>
+          <button className="btn-ghost text-danger" onClick={() => { if (window.confirm("Reset all settings to defaults?")) { resetSettings(); setDraft(null); setJustSaved(true); } }}>Reset to defaults</button>
         </div>
       </main>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4">
+          <span className={`text-sm ${dirty ? "font-medium text-ink" : justSaved ? "text-ok" : "text-muted"}`} data-testid="settings-state">
+            {dirty ? "Unsaved changes" : justSaved ? "Saved ✓" : "All changes saved"}
+          </span>
+          <div className="flex gap-2">
+            <button className="btn-ghost" disabled={!dirty} onClick={() => setDraft(null)}>Discard</button>
+            <button className="btn-primary px-6" disabled={!dirty} onClick={save} data-testid="settings-save">Save</button>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

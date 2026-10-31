@@ -3,7 +3,7 @@ import { Redis } from "@upstash/redis";
 import { randomBytes, createHash } from "node:crypto";
 import type { Job, JobPatch, JobSource } from "@/lib/jobs/types";
 
-export type Stored = { job: Job; keyHash: string; workerHash?: string };
+export type Stored = { job: Job; keyHash: string; workerHash?: string; startBody?: unknown };
 
 export function redisEnv(): { url: string; token: string } | null {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;

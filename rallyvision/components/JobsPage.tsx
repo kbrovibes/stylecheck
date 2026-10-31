@@ -4,56 +4,56 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Job } from "@/lib/jobs/types";
 import { ACTIVE_STATES, isStalled } from "@/lib/jobs/types";
-import { editKeyFor, useJobs } from "@/lib/jobs/client";
-import { fmtAgo, fmtBytes, fmtDuration, fmtEta } from "@/lib/format";
+import { useJobs } from "@/lib/jobs/client";
+import { estimateCost, fmtUsd } from "@/lib/jobs/cost";
+import { fmtAgo, fmtDuration } from "@/lib/format";
 import AppHeader from "@/components/AppHeader";
-import { Badge, Segmented } from "@/components/ui";
+import JobTable from "@/components/JobTable";
+import { Segmented } from "@/components/ui";
 import { Spinner } from "@/components/NewVideo";
+import { IconPlay } from "@/components/Icons";
 
-type Filter = "all" | "running" | "done" | "failed";
+type Filter = "all" | "running" | "done" | "issues";
 
-const LABEL: Record<Job["state"], string> = {
-  queued: "Queued", needs_court: "Needs court", preparing: "Compressing on phone", uploading: "Uploading", starting: "Starting worker",
-  analyzing: "Analyzing", rendering: "Rendering", publishing: "Publishing", done: "Done", failed: "Failed", cancelled: "Cancelled",
-};
-
-/** Every job from every device, newest first, with exact state and sizes. */
+/** All uploads from every device: table (live state, engine, cost) or video grid. */
 export default function JobsPage() {
   const { jobs, now, error } = useJobs(3000);
   const [filter, setFilter] = useState<Filter>("all");
+  const [view, setView] = useState<"table" | "grid">("table");
   const all = jobs ?? [];
   const running = all.filter((j) => ACTIVE_STATES.includes(j.state) && !isStalled(j, now));
-  const failed = all.filter((j) => j.state === "failed" || j.state === "cancelled" || isStalled(j, now));
   const done = all.filter((j) => j.state === "done");
-  const shown = filter === "running" ? running : filter === "done" ? done : filter === "failed" ? failed : all;
+  const issues = all.filter((j) => ["failed", "cancelled", "rejected"].includes(j.state) || isStalled(j, now));
+  const shown = filter === "running" ? running : filter === "done" ? done : filter === "issues" ? issues : all;
+  const spend = all.reduce((s, j) => s + estimateCost(j).usd, 0);
 
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 pb-24 pt-8">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:pt-8">
+        <Link href="/" className="text-xs text-muted hover:text-ink">← Home</Link>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl font-semibold">Jobs</h1>
-            <p className="mt-1 text-sm text-muted">Every upload from every device. Updates live; processing continues after you close the app.</p>
+            <h1 className="font-display text-2xl font-semibold">All uploads</h1>
+            <p className="num mt-1 text-xs text-muted">{all.length} uploads · {done.length} ready · compute so far {fmtUsd(spend)}</p>
           </div>
-          <Segmented size="sm" value={filter} onChange={setFilter} options={[
-            { value: "all", label: `All ${all.length}` },
-            { value: "running", label: `Running ${running.length}` },
-            { value: "done", label: `Done ${done.length}` },
-            { value: "failed", label: `Failed ${failed.length}` },
-          ]} />
+          <div className="flex flex-wrap gap-2">
+            <Segmented size="sm" value={filter} onChange={setFilter} options={[
+              { value: "all", label: `All ${all.length}` }, { value: "running", label: `Running ${running.length}` },
+              { value: "done", label: `Ready ${done.length}` }, { value: "issues", label: `Issues ${issues.length}` },
+            ]} />
+            <Segmented size="sm" value={view} onChange={setView} options={[{ value: "table", label: "Table" }, { value: "grid", label: "Grid" }]} />
+          </div>
         </div>
         {error && <div className="mt-6 rounded-2xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger">{error}</div>}
         {!jobs && !error && <div className="mt-10 flex items-center gap-3 text-sm text-muted"><Spinner /> Loading…</div>}
-        {jobs && shown.length === 0 && <div className="card mt-6 px-6 py-12 text-center text-sm text-muted">Nothing here yet.</div>}
-        {shown.length > 0 && (
-          <div className="card mt-6 overflow-hidden">
-            <div className="hidden grid-cols-[minmax(0,2.2fr)_1.2fr_1fr_1fr_1fr_0.9fr] gap-4 border-b border-line px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted md:grid">
-              <span>Video</span><span>State</span><span>Original</span><span>Uploaded</span><span>Output</span><span className="text-right">Created</span>
-            </div>
-            <div className="divide-y divide-line">
-              {shown.map((j) => <Row key={j.id} job={j} now={now} />)}
-            </div>
+        {jobs && (
+          <div className="mt-5">
+            {view === "table" ? <JobTable jobs={shown} now={now} empty="Nothing here." /> : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {shown.filter((j) => j.state === "done").map((j) => <Card key={j.id} job={j} now={now} />)}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -61,34 +61,23 @@ export default function JobsPage() {
   );
 }
 
-function Row({ job, now }: { job: Job; now: number }) {
-  const stalled = isStalled(job, now);
-  const active = ACTIVE_STATES.includes(job.state) && !stalled;
-  const pct = Math.round(job.progress * 100);
-  const mine = !!editKeyFor(job.id);
-  const t = job.timings ?? {};
-  const total = (t.prepareMs ?? 0) + (t.uploadMs ?? 0) + (t.analysisMs ?? 0) + (t.renderMs ?? 0) + (t.publishMs ?? 0);
+function Card({ job, now }: { job: Job; now: number }) {
+  const s = job.summary;
   return (
-    <Link href={`/v/${job.id}`} className="grid gap-x-4 gap-y-1 px-4 py-3.5 text-sm transition hover:bg-subtle/60 md:grid-cols-[minmax(0,2.2fr)_1.2fr_1fr_1fr_1fr_0.9fr] md:items-center" data-testid="jobs-row">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2"><span className="truncate font-medium">{job.summary ? `${job.summary.nearLabel} vs ${job.summary.farLabel}` : job.source.name}</span>{mine && <Badge>yours</Badge>}</div>
-        <div className="num truncate text-xs text-muted">{job.source.name} · {job.source.device} · {job.id}</div>
+    <Link href={`/v/${job.id}`} className="group card overflow-hidden transition hover:shadow-[var(--shadow-pop)]" data-testid="video-card">
+      <div className="relative aspect-video bg-subtle">
+        {/* eslint-disable-next-line @next/next/no-img-element -- Blob poster */}
+        {job.output?.posterUrl && <img src={job.output.posterUrl} alt="" className="h-full w-full object-cover" loading="lazy" />}
+        <div className="absolute inset-0 grid place-items-center opacity-0 transition group-hover:opacity-100"><span className="grid h-12 w-12 place-items-center rounded-full bg-black/55 text-white backdrop-blur"><IconPlay size={20} /></span></div>
+        <span className="num absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[11px] text-white">{fmtDuration(job.upload?.trimSec ?? job.source.durationSec)}</span>
       </div>
-      <div>
-        <Badge tone={job.state === "done" ? "ok" : job.state === "failed" ? "danger" : stalled ? "warn" : active ? "live" : "neutral"}>{stalled ? "Stalled" : LABEL[job.state]}</Badge>
-        {active && (
-          <div className="mt-1.5">
-            <div className="h-1 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-near transition-[width] duration-700" style={{ width: `${Math.max(3, pct)}%` }} /></div>
-            <div className="num mt-1 text-[11px] text-muted">{pct}% {fmtEta(job.etaSec)}{job.phase ? ` · ${job.phase}` : ""}</div>
-          </div>
-        )}
-        {job.state === "done" && total > 0 && <div className="num mt-1 text-[11px] text-muted">took {fmtDuration(total / 1000)}</div>}
-        {(job.state === "failed" || stalled) && job.error && <div className="mt-1 line-clamp-2 text-[11px] text-danger">{job.error}</div>}
+      <div className="p-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="truncate text-sm font-medium">{s ? `${s.nearLabel} vs ${s.farLabel}` : job.source.name}</div>
+          {s && <div className="num shrink-0 text-sm font-semibold">{s.scoreNear}–{s.scoreFar}</div>}
+        </div>
+        <div className="num mt-1 flex gap-3 text-xs text-muted">{s && <span>{s.rallies} rallies</span>}{s?.topSpeedKmh ? <span>top {s.topSpeedKmh} km/h</span> : null}<span className="ml-auto">{fmtAgo(job.createdAt, now)}</span></div>
       </div>
-      <div className="num text-xs text-ink-2"><span className="text-muted md:hidden">Original </span>{fmtBytes(job.source.sizeBytes)} · {fmtDuration(job.source.durationSec)}<div className="text-muted">{job.source.width}×{job.source.height} · {job.source.fps}fps</div></div>
-      <div className="num text-xs text-ink-2"><span className="text-muted md:hidden">Uploaded </span>{job.upload ? <>{fmtBytes(job.upload.bytes)}<div className="text-muted">{job.upload.compressed ? "compressed" : "original"}{job.upload.trimSec ? ` · ${job.upload.trimSec}s` : ""}</div></> : "—"}</div>
-      <div className="num text-xs text-ink-2"><span className="text-muted md:hidden">Output </span>{job.output ? <>{fmtBytes(job.output.videoBytes)}<div className="text-muted">{job.output.width}×{job.output.height}</div></> : "—"}</div>
-      <div className="num text-xs text-muted md:text-right">{fmtAgo(job.createdAt, now)}</div>
     </Link>
   );
 }

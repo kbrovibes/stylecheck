@@ -10,6 +10,7 @@ import type { Insights } from "@/lib/ai/types";
 import { deleteJob, editKeyFor, useJob, useServerConfig } from "@/lib/jobs/client";
 import { useSettings } from "@/lib/settings";
 import { effectiveWinner, formatSpeed } from "@/lib/render/overlay";
+import { ENGINE_LABEL, estimateCost, fmtUsd } from "@/lib/jobs/cost";
 import { fmtAgo, fmtBytes, fmtDuration, fmtEta } from "@/lib/format";
 import AppHeader from "@/components/AppHeader";
 import { IconBack, IconDownload, IconImage, IconShare, IconSparkle } from "@/components/Icons";
@@ -36,7 +37,7 @@ export default function Watch({ id }: { id: string }) {
     <>
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-4">
-        <Link href="/" className="btn-ghost -ml-3 h-9 px-3 text-muted"><IconBack size={16} /> Library</Link>
+        <Link href="/" className="btn-ghost -ml-3 h-9 px-3 text-muted"><IconBack size={16} /> Uploads</Link>
         {error && !job && <div className="mt-6 text-sm text-danger">{error === "Not found" ? "This video doesn't exist or was deleted." : error}</div>}
         {!job && !error && <div className="mt-10 flex items-center gap-3 text-sm text-muted"><Spinner /> Loading…</div>}
         {job && (
@@ -83,10 +84,17 @@ function Progress({ job }: { job: Job }) {
   return (
     <div className="card grid aspect-video place-items-center p-6 text-center">
       <div className="w-full max-w-sm">
-        {job.state === "failed" ? (
+        {job.state === "rejected" ? (
+          <>
+            <div className="text-sm font-medium">Removed: this doesn&apos;t look like badminton</div>
+            <div className="mt-1 break-words text-xs text-muted">{job.error}</div>
+            <div className="mt-2 text-xs text-muted">The upload was deleted. If this is a mistake, film from behind the baseline with the whole court in view and try again.</div>
+          </>
+        ) : job.state === "failed" ? (
           <>
             <div className="text-sm font-medium text-danger">Processing failed</div>
             <div className="mt-1 break-words text-xs text-muted">{job.error}</div>
+            <RetryButton job={job} />
           </>
         ) : job.state === "cancelled" ? (
           <div className="text-sm text-muted">Cancelled.</div>
@@ -97,12 +105,29 @@ function Progress({ job }: { job: Job }) {
             <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-subtle"><div className="h-full rounded-full bg-ink transition-[width] duration-700" style={{ width: `${Math.max(2, pct)}%` }} /></div>
             <div className="mt-3 text-xs text-muted">
               {stalled
-                ? server ? "The cloud worker stopped reporting. It may have timed out." : "The phone that uploaded this stopped responding (app closed before the upload finished)."
+                ? server ? <>The cloud worker stopped reporting. It may have timed out.<RetryButton job={job} /></> : "The phone that uploaded this stopped responding (app closed before the upload finished)."
                 : server ? <>Running in the cloud. {fmtEta(job.etaSec)} · safe to close the app.</> : "Waiting for the uploading phone…"}
             </div>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function RetryButton({ job }: { job: Job }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!editKeyFor(job.id)) return null;
+  return (
+    <div className="mt-3">
+      <button className="btn-secondary h-9 px-4 text-xs" disabled={busy} onClick={async () => {
+        setBusy(true); setErr(null);
+        const res = await fetch(`/api/jobs/${job.id}/retry`, { method: "POST", headers: { "x-edit-key": editKeyFor(job.id)! } });
+        if (!res.ok) setErr(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Retry failed (${res.status})`);
+        setBusy(false);
+      }}>{busy ? "Restarting…" : "Retry"}</button>
+      {err && <div className="mt-1 text-[11px] text-danger">{err}</div>}
     </div>
   );
 }
@@ -238,12 +263,15 @@ function Details({ job, analysis }: { job: Job; analysis: Analysis | null }) {
   const t = job.timings ?? {};
   const sec = (ms?: number) => (ms ? `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s` : "—");
   const stalled = isStalled(job);
+  const cost = estimateCost(job);
   const rows: Array<[string, React.ReactNode]> = [
-    ["State", <Badge key="s" tone={job.state === "done" ? "ok" : job.state === "failed" ? "danger" : stalled ? "warn" : ACTIVE_STATES.includes(job.state) ? "live" : "neutral"}>{stalled ? "stalled" : job.state.replace("_", " ")}</Badge>],
+    ["State", <Badge key="s" tone={job.state === "done" ? "ok" : job.state === "failed" ? "danger" : stalled || job.state === "rejected" ? "warn" : ACTIVE_STATES.includes(job.state) ? "live" : "neutral"}>{stalled ? "stalled" : job.state.replace("_", " ")}</Badge>],
     ["Original", `${fmtBytes(job.source.sizeBytes)} · ${fmtDuration(job.source.durationSec)} · ${job.source.width}×${job.source.height} · ${job.source.fps} fps`],
     ["Uploaded", job.upload ? `${fmtBytes(job.upload.bytes)}${job.upload.compressed ? " · compressed on phone" : " · original"}${job.upload.trimSec ? ` · first ${job.upload.trimSec}s` : ""}` : "—"],
     ["Output", job.output ? `${fmtBytes(job.output.videoBytes)} · ${job.output.width}×${job.output.height} · H.264` : "—"],
-    ["Engine", analysis ? `${analysis.engine.shuttle} shuttle · ${analysis.engine.players} players` : "—"],
+    ["Engine", `${ENGINE_LABEL[job.engine ?? (job.upload ? "cloud" : "device")]}${analysis ? ` · ${analysis.engine.shuttle === "cloud" ? "TrackNetV3" : "motion"} shuttle · ${analysis.engine.players} players` : ""}`],
+    ["Cost", <span key="c" title={cost.lines.join("\n")}>{fmtUsd(cost.usd)} <span className="text-muted">({cost.lines.join(" · ")})</span></span>],
+    ...(job.screen ? [["Badminton check", `${job.screen.badminton ? "yes" : "no"} · ${Math.round(job.screen.confidence * 100)}% · ${job.screen.by}${job.screen.reason ? ` · ${job.screen.reason}` : ""}`] as [string, React.ReactNode]] : []),
     ["Timings", `prep ${sec(t.prepareMs)} · upload ${sec(t.uploadMs)} · analyse ${sec(t.analysisMs)} · render ${sec(t.renderMs)}`],
     ["Updated", fmtAgo(job.updatedAt)],
     ["ID", <span key="id" className="num">{job.id}</span>],

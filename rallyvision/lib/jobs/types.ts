@@ -1,6 +1,6 @@
 import type { Insights } from "@/lib/ai/types";
 
-export type JobState = "queued" | "needs_court" | "preparing" | "uploading" | "starting" | "analyzing" | "rendering" | "publishing" | "done" | "failed" | "cancelled";
+export type JobState = "queued" | "needs_court" | "preparing" | "uploading" | "starting" | "analyzing" | "rendering" | "publishing" | "done" | "failed" | "cancelled" | "rejected";
 
 export const ACTIVE_STATES: JobState[] = ["queued", "needs_court", "preparing", "uploading", "starting", "analyzing", "rendering", "publishing"];
 /** States driven by the server worker (the phone can be closed). */
@@ -54,10 +54,14 @@ export type Job = {
   output?: JobOutput;
   summary?: JobSummary;
   insights?: Insights;
-  timings?: { prepareMs?: number; uploadMs?: number; analysisMs?: number; renderMs?: number; publishMs?: number };
+  timings?: { prepareMs?: number; uploadMs?: number; analysisMs?: number; renderMs?: number; publishMs?: number; workerMs?: number; gpuMs?: number };
   /** what the phone uploaded (after optional on-device trim/compress) */
   upload?: { url: string; bytes: number; compressed: boolean; trimSec: number | null };
   sandboxId?: string;
+  /** where it ran: Vercel Sandbox CPU, Sandbox + Modal GPU detector, or the uploader's browser */
+  engine?: "cloud" | "modal" | "device";
+  /** non-badminton check result */
+  screen?: { badminton: boolean; confidence: number; reason: string; by: "gemini" | "heuristic" };
 };
 
 /** Everything the server worker needs to process a job. */
@@ -80,7 +84,7 @@ export type WorkerSpec = {
 };
 
 /** Fields a client may PATCH (with the job's edit key). */
-export type JobPatch = Partial<Pick<Job, "state" | "phase" | "progress" | "etaSec" | "error" | "output" | "summary" | "timings" | "upload" | "sandboxId">>;
+export type JobPatch = Partial<Pick<Job, "state" | "phase" | "progress" | "etaSec" | "error" | "output" | "summary" | "timings" | "upload" | "sandboxId" | "engine" | "screen">>;
 
 export function isStalled(j: Job, now = Date.now()): boolean {
   return ACTIVE_STATES.includes(j.state) && j.state !== "needs_court" && now - j.heartbeatAt > STALL_MS;

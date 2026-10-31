@@ -4,7 +4,7 @@ import { COACH_SYSTEM, coachUserMessage } from "@/lib/ai/prompt";
 
 export async function geminiInsights(s: MatchSummary): Promise<Insights> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
   const res = await ai.models.generateContent({
     model,
     contents: coachUserMessage(s),

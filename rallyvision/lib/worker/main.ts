@@ -12,7 +12,7 @@ import fs from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import type { Analysis, PlayerSample, ShuttleSample } from "@/lib/types";
 import type { Job, JobPatch, WorkerSpec } from "@/lib/jobs/types";
 import { read, write } from "@/lib/jobs/core";
@@ -24,6 +24,7 @@ import { buildIndex, drawOverlay, renderStatsCard } from "@/lib/render/overlay";
 import { detectWithModal } from "@/lib/worker/modal";
 
 const TMP = process.env.WORK_DIR ?? "/tmp/rallyvision";
+const WORKER_START = Date.now();
 const ANALYSIS_WIDTH = 640;
 
 const spec = JSON.parse(fs.readFileSync(process.argv[2] ?? "/vercel/sandbox/spec.json", "utf8")) as WorkerSpec;
@@ -73,6 +74,41 @@ async function* rawFrames(args: string[], frameBytes: number): AsyncGenerator<Bu
   if (code !== 0) throw new Error(`ffmpeg decode failed: ${err}`);
 }
 
+/** Asks Gemini whether sampled frames show badminton. Null when no key or on any error (never blocks a job). */
+async function screenWithGemini(src: string, duration: number): Promise<{ badminton: boolean; confidence: number; reason: string } | null> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  try {
+    const parts: Array<Record<string, unknown>> = [];
+    for (const frac of [0.15, 0.4, 0.65, 0.9]) {
+      const out = `${TMP}/screen-${frac}.jpg`;
+      spawnSync("ffmpeg", ["-v", "error", "-y", "-ss", (duration * frac).toFixed(2), "-i", src, "-frames:v", "1", "-vf", "scale=512:-2", "-q:v", "5", out]);
+      if (fs.existsSync(out)) parts.push({ inline_data: { mime_type: "image/jpeg", data: fs.readFileSync(out).toString("base64") } });
+    }
+    if (!parts.length) return null;
+    parts.push({ text: "These are frames from one uploaded video. Is it footage of badminton being played (a match, rally or practice on a badminton court)? Answer as JSON." });
+    const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: { type: "OBJECT", properties: { badminton: { type: "BOOLEAN" }, confidence: { type: "NUMBER" }, reason: { type: "STRING" } }, required: ["badminton", "confidence", "reason"] },
+        },
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const text = j.candidates?.[0]?.content?.parts?.[0]?.text;
+    return text ? (JSON.parse(text) as { badminton: boolean; confidence: number; reason: string }) : null;
+  } catch { return null; }
+}
+
+class Rejected extends Error {}
+
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 
 async function main() {
@@ -96,6 +132,14 @@ async function main() {
   const frames = Math.floor(duration * fps);
   const trimArgs = ["-t", duration.toFixed(3)];
 
+  // 1b. reject uploads that aren't badminton (keeps the public library clean)
+  await patch({ state: "analyzing", phase: "Checking it's badminton", progress: 0.01 }, true);
+  const verdict = await screenWithGemini(src, duration);
+  if (verdict) {
+    await patch({ screen: { ...verdict, by: "gemini" } }, true);
+    if (!verdict.badminton && verdict.confidence >= 0.7) throw new Rejected(verdict.reason || "This doesn't look like badminton.");
+  }
+
   // 2. analyse (same detector/tracker/event code as the browser)
   const W = spec.width, H = spec.height;
   const aw = Math.min(ANALYSIS_WIDTH, W) & ~1, ah = even((H * aw) / W);
@@ -116,6 +160,7 @@ async function main() {
       (p) => patch({ state: "analyzing", phase: "Tracking on GPU (TrackNetV3)", progress: 0.5 * p, etaSec: null }));
     shuttle = r.shuttle;
     f = r.frames;
+    timings.gpuMs = Date.now() - tA;
     for (const pf of r.poses) {
       const poses = pf.people.map((p) => ({ conf: p.conf, landmarks: p.landmarks.map((q) => ({ x: q.x / scale, y: q.y / scale })) }));
       if (poses.length) players.push(...assigner.fromPoses(pf.f, pf.f / fps, poses).players);
@@ -171,6 +216,10 @@ async function main() {
   }
   const score = computeScore(rallies, spec.settings);
   const stats = computeStats(rallies, hits, players, fps);
+  if (!verdict && rallies.length === 0 && hits.length < 2 && players.length < f * 0.05) {
+    await patch({ screen: { badminton: false, confidence: 0.6, reason: "No court play found: no rallies, shots or players detected.", by: "heuristic" } }, true);
+    throw new Rejected("No badminton play found: no rallies, shots or players were detected.");
+  }
   const analysis: Analysis = {
     version: 1,
     video: { width: W, height: H, fps, duration, frames: f, name: spec.jobId },
@@ -249,6 +298,8 @@ async function main() {
     upload(`${base}/analysis.json`, JSON.stringify(slim), { ...opts, contentType: "application/json" }),
   ]);
   timings.publishMs = Date.now() - tP;
+  timings.workerMs = Date.now() - WORKER_START;
+  if (!DRY && spec.sourceUrl.startsWith("https://")) await del(spec.sourceUrl).catch(() => {}); // outputs are kept; the raw upload isn't needed any more
   const last = score[score.length - 1];
   await patch({
     state: "done", phase: "Done", progress: 1, etaSec: null,
@@ -272,6 +323,13 @@ main()
   .then(() => finish(true))
   .catch(async (e: unknown) => {
     const msg = e instanceof Error ? e.message : String(e);
+    if (e instanceof Rejected) {
+      timings.workerMs = Date.now() - WORKER_START;
+      try { await patch({ state: "rejected", phase: "Removed: not badminton", error: msg.slice(0, 300), etaSec: null, progress: 1 }, true); } catch { /* ignore */ }
+      if (!DRY && spec.sourceUrl.startsWith("https://")) await del(spec.sourceUrl).catch(() => {});
+      await finish(true);
+      return;
+    }
     console.error("[worker] failed:", msg);
     if (msg !== "cancelled") {
       try { await patch({ state: "failed", phase: "Failed", error: msg.slice(0, 500), etaSec: null }, true); } catch { /* ignore */ }

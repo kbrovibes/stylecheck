@@ -196,6 +196,7 @@ export default function NewVideo({ file, onClose }: { file: File; onClose: () =>
               : <>Upload {willCompress ? <>≈ <b>{estMB.toFixed(0)} MB</b> (compressed on phone)</> : <b>{fmtBytes(file.size)}</b>}, then the cloud does the rest. {mode === "modal" ? "GPU (Modal) engine." : "CPU engine."}</>}
             {mode !== settings.processing && <div className="mt-1 text-warn">{settings.processing === "modal" ? "Cloud GPU" : "Cloud"} processing isn&apos;t set up on this deployment yet, so this runs {mode === "device" ? "on this device" : "on the cloud CPU"}.</div>}
           </div>
+          {mode !== "device" && <p className="text-[11px] text-muted">Uploads are public: anyone using this app can watch the finished video. Non-badminton videos are removed automatically.</p>}
           {blocked && <div className="text-xs font-medium text-danger">{blocked}</div>}
           <button className="btn-primary h-12 w-full text-base" data-testid="analyze" disabled={!!blocked || config === null} onClick={start}>
             {mode === "device" ? "Analyze on this device" : "Upload & analyze"}
