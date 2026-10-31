@@ -57,10 +57,10 @@ export default function Home() {
           <section className="mb-12">
             <div className="mb-3 flex items-baseline justify-between">
               <h2 className="font-display text-lg font-semibold">Jobs</h2>
-              <span className="text-xs text-muted">{active.filter((j) => ACTIVE_STATES.includes(j.state)).length} running · live</span>
+              <Link href="/jobs" className="text-xs text-muted hover:text-ink">{active.filter((j) => ACTIVE_STATES.includes(j.state)).length} running · all jobs →</Link>
             </div>
             <div className="card divide-y divide-line overflow-hidden">
-              {active.map((j) => <JobRow key={j.id} job={j} now={now} />)}
+              {active.slice(0, 5).map((j) => <JobRow key={j.id} job={j} now={now} />)}
             </div>
           </section>
         )}

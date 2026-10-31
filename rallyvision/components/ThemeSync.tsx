@@ -12,5 +12,8 @@ export default function ThemeSync() {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, [theme]);
+  useEffect(() => {
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") void navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
   return null;
 }

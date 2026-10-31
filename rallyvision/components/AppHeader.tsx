@@ -15,6 +15,7 @@ export default function AppHeader() {
         </Link>
         <nav className="flex items-center gap-1">
           <Link href="/" className={`btn-ghost h-9 px-3 ${path === "/" ? "text-ink" : ""}`}>Library</Link>
+          <Link href="/jobs" className={`btn-ghost h-9 px-3 ${path === "/jobs" ? "text-ink" : ""}`} data-testid="nav-jobs">Jobs</Link>
           <Link href="/settings" className={`btn-icon ${path === "/settings" ? "bg-subtle text-ink" : ""}`} aria-label="Settings"><IconSettings /></Link>
         </nav>
       </div>

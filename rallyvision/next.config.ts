@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["onnxruntime-web"],
   async headers() {
     return [
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }, { key: "Service-Worker-Allowed", value: "/" }] },
       {
         // WASM + model files are immutable; cache hard.
         source: "/(mediapipe|models|sample)/:path*",
