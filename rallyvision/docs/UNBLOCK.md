@@ -3,20 +3,13 @@
 Everything below is **optional**: the app is fully functional without any of it.
 Items are ordered by how much they improve the product.
 
-## 1. Deploy to Vercel (blocked: no Vercel token, `api.vercel.com` not reachable from the sandbox)
+## 1. Deploy to Vercel — ✅ lifted 2026-10-30
 
-Zero-config. Either:
-
-- **One click:** [Deploy with Vercel](https://vercel.com/new/clone?repository-url=https://github.com/kbrovibes/stylecheck&root-directory=rallyvision&project-name=rallyvision)
-  (if the prefilled root directory is ignored, set **Root Directory → `rallyvision`** in the import screen), or
-- **Dashboard:** Vercel → Add New → Project → import `kbrovibes/stylecheck` → Root Directory `rallyvision`
-  → Production Branch `claude/rallyvision` (or merge the branch to `main` first) → Deploy.
-
-No environment variables are required for the first deploy.
-
-To let me deploy next time: add `VERCEL_TOKEN` (from vercel.com/account/tokens) as an environment
-secret in the Claude Code environment and allow `api.vercel.com` in its network policy; then
-`npx vercel --prod --token $VERCEL_TOKEN` from `rallyvision/` works.
+Live at **https://rallyvision-one.vercel.app** (project `rallyvision` in `kbrovibes-projects`; `rallyvision.vercel.app`
+was already taken). Deployed with the CLI from `rallyvision/` (`vercel --prod`); `.vercelignore` keeps local files
+out of the upload. The project is **not Git-connected**, so pushes don't redeploy it. To set that up, connect the repo
+in Vercel → Settings → Git with Root Directory `rallyvision` and Production Branch `claude/rallyvision`; otherwise
+redeploy with `vercel --prod` from `rallyvision/`.
 
 ## 2. AI coach notes (mocked today)
 

@@ -1,0 +1,5 @@
+ruvector.db
+.claude-flow
+.swarm
+tests/out
+worker
