@@ -30,7 +30,7 @@ export default function Home() {
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-semibold">Uploads</h1>
           <div className="flex items-center gap-2">
-            <button className="btn-ghost hidden h-9 px-3 text-xs sm:inline-flex" onClick={pickSample} data-testid="sample">Try a sample</button>
+            <button className="btn-ghost h-9 px-3 text-xs" onClick={pickSample} data-testid="sample">Try a sample</button>
             <button className="btn-primary" onClick={upload} data-testid="choose-video"><IconUpload size={16} /> Upload video</button>
           </div>
         </div>
@@ -57,7 +57,6 @@ export default function Home() {
           </div>
         )}
 
-        <button className="btn-secondary mt-6 h-9 px-3 text-xs sm:hidden" onClick={pickSample}>Try a sample</button>
       </main>
       <button onClick={upload} aria-label="Upload video" className="btn-primary fixed bottom-[max(20px,env(safe-area-inset-bottom))] right-5 h-14 w-14 rounded-full p-0 shadow-[var(--shadow-pop)] sm:hidden"><IconUpload size={22} /></button>
       {file && <NewVideo file={file} onClose={() => setFile(null)} />}
