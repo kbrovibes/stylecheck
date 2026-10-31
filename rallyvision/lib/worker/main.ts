@@ -166,7 +166,7 @@ async function main() {
   const rallies = segmentRallies(smooth, hits, fps, cal, spec.settings);
   classifyHits(hits, rallies, cal);
   for (const r of rallies) {
-    const sp = r.hits.map((h) => h.speedKmh).filter((v): v is number => v !== null);
+    const sp = r.hits.filter((h) => h.reliable).map((h) => h.speedKmh).filter((v): v is number => v !== null);
     r.maxSpeedKmh = sp.length ? Math.max(...sp) : null;
   }
   const score = computeScore(rallies, spec.settings);
