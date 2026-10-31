@@ -98,3 +98,51 @@ Autonomous decisions made while building (2026-10-30). Flag anything you'd chang
   truth of 4 (rallies 1 and 2 merged across a 2.1 s gap), counted 21/21 shots, and the winner heuristic
   was right on 2/4 rallies. The 4/4 "aligned" check passes because the merged rally overlaps both truth
   rallies. Known gap to fix during real-footage tuning.
+
+## 2026-10-31 — event-logic accuracy pass (`lib/cv/events.ts`)
+Offline benchmark, before → after, per ffmpeg scaler (default bicubic / area / bilinear; the browser is closest to
+bilinear). Tracker untouched, so shuttle recall is unchanged (47 / 69 / 56 %).
+- Rallies: 4 / 3 (1+2 merged) / 5 (rally 1 split) → **4 / 4 / 4**, each aligned 1:1 with a truth rally.
+- Winners right: 1 / 1 / 1 of 4 → **1 / 4 / 2**. (Area rally 2 is right partly for the wrong reason: a phantom late
+  hit triggers the lost-in-flight rule.) The misses left are all tracks lost mid-rally, 0.5–1.6 s before it ends.
+- Hits matched within 0.25 s: 8 / 15 / 8 of 21 → **9 / 16 / 12**, while detections fell from 17 / 30 / 18 to
+  11 / 20 / 12, so far fewer phantom hits. Correct hitter among matched hits: 5/8, 9/15, 4/8 → 7/9, 14/16, 12/12.
+- Top "reliable" speed: 164 / 161 / 125 → 82 / 88 / 94 km/h. The synthetic shots move at well under 100 km/h, so
+  the old values were artefacts.
+
+Rule changes, with the reasoning behind each:
+- **Drop samples that hover.** Anything whose image footprint stays inside 0.75 m for 1 s is not a shuttle in play
+  (terminal velocity is ~6.8 m/s). It is an arm or racket the tracker latched onto, or a shuttle lying on the floor.
+  This is what merged rallies 1 and 2: a confirmed track jittered around the far player for 1.5 s and was then
+  handed over to the next serve. The window has to be a full second because flight along the court is so
+  foreshortened in the far half that a real shuttle can cover only ~0.8 m of footprint in 0.8 s.
+- **Gaps:** > 1.2 s still ends a rally, unless the gap is ≤ 1.8 s (about the longest single flight, a high serve or
+  clear) and the shuttle is moving > 3 m/s on both sides of it. That is the tracker losing a shot in flight, not
+  play stopping.
+- **Hit trigger:** the sign change of *ground-projected* along-court velocity is gone. An airborne shuttle's
+  projection reverses at the apex of every far-court flight, so that rule produced a phantom hit before or after most
+  far-player hits and gave the real one to the wrong side. It is replaced by an upturn in *image* motion (moving down
+  the frame, then up). In free flight drag only slows the shuttle and gravity only pulls it down, so only a racket
+  can do that. The sharp-turn rule stays.
+- **Hitter side:** the camera sits above contact height, so the ground projection of an airborne shuttle always lands
+  farther from the camera, never nearer. A contact that projects onto the near half is therefore certainly near.
+  Otherwise the net image-y travel over the next 0.6 s decides. Player snapping still overrides when a player is close.
+- **Serve:** a rally candidate ≥ 1 s with no hit in its first 0.3 s gets a hit at its first in-play sample.
+- **Winner from the landing, not the last hitter.** If the shuttle comes down in on half S, the other side wins; if it
+  goes out on half S, S wins. Net faults are covered too. The old lost-in-flight fallback is kept: the track ends on
+  the last hitter's half, away from the net, heading for the opponent.
+- **Smoothing** shrinks its window symmetrically at the ends of a run. The old one-sided average dragged landings
+  back toward the hitter, by enough to flip an in/out call.
+- **Speed reliability:** a speed is now also unreliable if any sample used projects more than 1 m outside the court.
+  The ground projection of a shuttle h m up is magnified by H/(H−h), so rising shots read 2–4× too fast and showed
+  as 160–200 km/h "reliable" smashes. `Rally.maxSpeedKmh` (here and in `pipeline.ts`) and `classifyHits` now use
+  reliable speeds only. The rally list was showing the unfiltered max, which is where the 310 km/h came from. As a
+  result fewer hits carry a trusted speed.
+
+Tried and dropped:
+- **Requiring each rally to cross the net** in ground projection. It removed real rallies: the same height bias
+  pushes near-half samples past the net line, so rally 1 never projects below 6.2 m.
+- **"Same side can't hit twice within 0.6 s" dedup.** It kept the wrong one of each pair about half the time.
+- **Lost-in-flight test without the hitter**, using projected velocity or image-y only. A shuttle coming down onto
+  the far half projects as moving toward the camera, so it called real landings "lost".
+- Thresholds are not sensitive: the image-upturn speed gave identical results from 0.3 to 1.5 m/s.

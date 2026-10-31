@@ -103,7 +103,7 @@ export async function runAnalysis(
   const rallies = segmentRallies(smooth, hits, meta.fps / settings.stride, cal, settings);
   classifyHits(hits, rallies, cal);
   for (const r of rallies) {
-    const speeds = r.hits.map((h) => h.speedKmh).filter((v): v is number => v !== null);
+    const speeds = r.hits.filter((h) => h.reliable).map((h) => h.speedKmh).filter((v): v is number => v !== null);
     r.maxSpeedKmh = speeds.length ? Math.max(...speeds) : null;
   }
   const score = computeScore(rallies, settings);
