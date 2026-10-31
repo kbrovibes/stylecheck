@@ -214,3 +214,22 @@ upload.
 - The GPU detector is called from inside the Sandbox job (`DETECT_ENGINE=modal`). Events, scoring and rendering stay in
   the Sandbox. If the GPU pose model finds players in under 20 % of frames, the worker falls back to the CPU background
   model for players.
+
+## 2026-10-31: share-with-friends pass (user away, decided autonomously)
+- **Gemini wired** with the user's existing key (same Google account as stylecheck), default model alias `gemini-flash-latest`
+  (the 2.5-era id was outdated). Coach notes on prod return `provider: gemini`.
+- **Non-badminton auto-removal.** The worker samples 4 frames and asks Gemini for `{badminton, confidence, reason}`.
+  Below 80 % "no", the job continues. Clear non-badminton becomes state `rejected` and the raw upload is deleted; it's hidden
+  from the home table and visible under All uploads → Issues. The first prompt rejected the synthetic sample as "an animated
+  diagram, not live footage", so the prompt now explicitly accepts rendered or animated play and rejects only clearly
+  unrelated content. Without a key, a conservative CV fallback rejects only when there are no rallies, <2 shots and almost no players.
+  Checked on prod: fractal clip rejected (conf 1.0) in 6 s with the upload deleted; sample accepted (0.98).
+- **Cost shown per job** (`lib/jobs/cost.ts`): list-price estimates from recorded timings. Sandbox 4 vCPU active CPU +
+  memory, Modal T4 seconds, Gemini check; on-device is $0. Jobs now store `engine`.
+- **Home leads with uploads** (latest 6, table with poster/score/status/engine/clip/cost); "View all" goes to `/jobs`
+  ("All uploads", table or grid, filters). Hero copy removed; floating upload button on phones.
+- **Settings** use an explicit Save/Discard bar (draft state) with a "Saved ✓" confirmation and an unsaved-changes warning on leave.
+- **Sharing basics:** Open Graph/Twitter tags on `/v/[id]` (poster, players, score, top speed). Raw uploads are deleted
+  after a successful render. Owner-only Retry for failed or stalled jobs (start params kept server-side). Daily cleanup cron
+  (`/api/cron/cleanup`, `CRON_SECRET`) fails jobs silent for >2 h and purges week-old failed uploads. Modal GPU is capped
+  at `MODAL_JOBS_PER_DAY` (40), after which jobs fall back to CPU. The upload sheet says uploads are public.
